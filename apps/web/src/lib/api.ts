@@ -1,24 +1,107 @@
 const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
 
-/** Server-side GET against the NestJS API; null when it is unreachable. */
-export async function apiGet<T>(path: string): Promise<T | null> {
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
+
+async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   try {
-    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const res = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = Array.isArray(body?.message) ? body.message.join(", ") : body?.message;
+      return { ok: false, status: res.status, message: message ?? res.statusText };
+    }
+    return { ok: true, data: body as T };
   } catch {
-    return null;
+    return { ok: false, status: 0, message: "" };
   }
 }
 
-export interface HealthStatus {
-  ok: boolean;
-  database: "up" | "down";
+export const apiGet = <T>(path: string) => request<T>(path);
+
+export const apiPost = <T>(path: string, body: unknown) =>
+  request<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+/** `?from=..&to=..` plus extra params, skipping empty values. */
+export function qs(params: Record<string, string | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) p.set(k, v);
+  const s = p.toString();
+  return s ? `?${s}` : "";
 }
 
-export interface SalesdocStatus {
-  configured: boolean;
-  connected: boolean;
-  userId?: string;
-  error?: { code?: number; message: string };
+export interface Summary {
+  period: { from: string; to: string };
+  dataAsOf: string | null;
+  outlets: { receivable: string; prepaid: string; delivered: string; returned: string; paid: string };
+  supplier: { received: string; paid: string; owed: string };
+}
+
+export interface OutletBalance {
+  outletSdId: string;
+  name: string;
+  firmName: string | null;
+  inn: string | null;
+  opening: string;
+  delivered: string;
+  returned: string;
+  paid: string;
+  closing: string;
+}
+
+export interface StatementRow {
+  kind: "order" | "return" | "payment" | "purchase";
+  sdId: string;
+  date: string;
+  amount: string;
+  balance: string;
+  warehouseName?: string | null;
+}
+
+export interface OutletStatement {
+  outlet: { sdId: string; name: string; firmName: string | null; inn: string | null };
+  opening: string;
+  closing: string;
+  rows: StatementRow[];
+}
+
+export interface SupplierStatement {
+  opening: string;
+  received: string;
+  paid: string;
+  closing: string;
+  rows: StatementRow[];
+}
+
+export interface StockResponse {
+  warehouses: Array<{ sdId: string; name: string }>;
+  rows: Array<{ warehouseSdId: string; warehouseName: string; productSdId: string; productName: string; quantity: string }>;
+}
+
+export interface PurchaseList {
+  total: string;
+  rows: Array<{ sdId: string; date: string; warehouseName: string | null; supplierName: string | null; lineCount: number; total: string }>;
+}
+
+export interface PurchaseDetail {
+  sdId: string;
+  date: string;
+  warehouseName: string | null;
+  supplierName: string | null;
+  total: string;
+  lines: Array<{ productSdId: string | null; productName: string; quantity: string; price: string; amount: string }>;
+}
+
+export interface SyncStatus {
+  running: boolean;
+  dataAsOf: string | null;
+  resources: Array<{
+    resource: string;
+    lastSuccessAt: string | null;
+    resumePage: number | null;
+    lastRun: { status: string; records: number; error: string | null; startedAt: string; finishedAt: string | null } | null;
+  }>;
 }

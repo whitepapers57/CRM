@@ -1,29 +1,38 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { LocaleSwitch } from "@/components/app/locale-switch";
+import { Sidebar } from "@/components/app/sidebar";
+import { getLocale, getT } from "@/i18n/server";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-sans",
-  subsets: ["latin", "cyrillic"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin", "cyrillic"],
-});
+const geistSans = Geist({ variable: "--font-sans", subsets: ["latin", "cyrillic"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
   title: "Distribution Finance",
   description: "Distribution finance on Salesdoc data",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
+  const t = await getT();
+  const items = [
+    { href: "/", label: t("nav.reconciliation") },
+    { href: "/outlets", label: t("nav.outlets") },
+    { href: "/supplier", label: t("nav.supplier") },
+    { href: "/warehouse", label: t("nav.warehouse") },
+    { href: "/settings/sync", label: t("nav.sync") },
+  ];
   return (
-    <html
-      lang="ru"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col bg-background md:flex-row">
+        <Sidebar
+          title={t("app.title")}
+          items={items}
+          footer={<LocaleSwitch current={locale} label={t("common.locale")} />}
+        />
+        <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-6 px-4 py-8">{children}</main>
+      </body>
     </html>
   );
 }
