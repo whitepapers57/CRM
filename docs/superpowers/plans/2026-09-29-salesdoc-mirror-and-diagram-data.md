@@ -4155,3 +4155,23 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
 Update `README.md` endpoints list with the new routes and `docs/salesdoc-api.md` with the two findings from this plan (getPayment `transactionType` filter is applied after paging; type 9 shelf-return payments mirror returns), then commit `docs: sync findings`.
+
+---
+
+### Task 12: Three-month window, balances anchored on Salesdoc (added 29 Sep 2026)
+
+Owner decision after Task 8: store only the current month and the two before it; anchor outlet balances on Salesdoc `getBalance` (spec §4, §4.1, §4.7, §5 updated in 0b57e77).
+
+**Files:**
+- Create: `apps/api/src/sync/window.ts`, `apps/api/src/sync/window.spec.ts`
+- Modify: `apps/api/prisma/schema.prisma` (+ `OutletBalance`), `apps/api/src/sync/mappers.ts` (+ `mapBalance`), `apps/api/src/sync/resources.ts` (+ `balances`, `dated`), `apps/api/src/sync/sync.service.ts` (window filter on full passes), `apps/api/src/settlements/period.ts` (window floor), `apps/api/src/settlements/settlements.service.ts` (anchor formula, window-bounded supplier opening), their specs; `apps/web/src/lib/api.ts`, `apps/web/src/app/page.tsx`, `apps/web/src/i18n/messages.ts` (show the window start).
+
+**Interfaces:**
+- `syncWindow(now: Date): { start: string; fetchFrom: string; to: string }` — Tashkent days: `start` = 1st of the month two months back, `fetchFrom` = `start` − 7 days (order date vs document date margin), `to` = today.
+- `ResourceDef.dated?: (from: string, to: string) => { period: { date: { from; to } } }` — sent on full passes only, with `fetchFrom`..`to`.
+- Model `OutletBalance { sdId @id, name?, debt Decimal(18,2), raw, seenAt }`; `mapBalance(raw, seenAt)` → `debt = −balance`; resource `balances` (`getBalance` → `balance`, replace mode).
+- `parsePeriod(from?, to?, today?)` throws `from must not be before <start>` when `from` < window start; `Period.windowStart: string`.
+- Outlet balance at moment t = `OutletBalance.debt` (0 if absent) − Σ movements dated ≥ t. Supplier opening = Σ purchases dated in [windowStart, from).
+- `summary()` adds `windowStart: string`.
+
+Tests: window boundaries; mapper sign; `balances` resource saves; full pass sends `period.date` = `fetchFrom`..`to`; settlement specs rewritten on anchors (outlet with only a balance row, outlet with movements but no balance row, statement opening from anchor, supplier purchase inside the 7-day margin excluded); period floor 400.
