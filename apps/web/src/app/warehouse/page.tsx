@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
-import { PeriodFilter } from "@/components/app/period-filter";
+import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
 import { Select } from "@/components/app/select";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type PurchaseList, type StockResponse } from "@/lib/api";
 import { formatDateTime, formatQty } from "@/lib/format";
-import { tashkentToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 
 export default async function WarehousePage({ searchParams }: PageProps<"/warehouse">) {
@@ -19,7 +18,6 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const tab = get("tab") === "purchases" ? "purchases" : "stock";
-  const today = tashkentToday();
   const tabs = (
     <nav className="flex gap-1">
       {(["stock", "purchases"] as const).map((k) => (
@@ -83,15 +81,11 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
   const from = get("from");
   const to = get("to");
   const res = await apiGet<PurchaseList>(`/warehouse/purchases${qs({ from, to })}`);
-  if (!res.ok) return <ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} />;
+  if (!res.ok) return <><PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader><PagePeriod from={from} to={to} /><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   return (
     <>
       <PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader>
-      <PeriodFilter
-        from={from ?? `${today.slice(0, 7)}-01`}
-        to={to ?? today}
-        labels={{ from: t("period.from"), to: t("period.to"), apply: t("common.apply"), invalid: t("errors.date_invalid"), order: t("errors.period_order") }}
-      />
+      <PagePeriod from={from} to={to} />
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
-import { PeriodFilter } from "@/components/app/period-filter";
+import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
 import { Select } from "@/components/app/select";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type OutletBalance } from "@/lib/api";
-import { tashkentToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
 
 type Filters = { agents: Array<{ sdId: string; name: string }>; expeditors: Array<{ sdId: string; name: string }> };
@@ -25,21 +24,18 @@ export default async function Outlets({ searchParams }: PageProps<"/outlets">) {
     apiGet<{ total: number; rows: OutletBalance[] }>(`/outlets/balances${qs({ ...query, page: String(page) })}`),
     apiGet<Filters>("/outlets/filters"),
   ]);
-  if (!res.ok) return <ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} />;
+  const header = (
+    <PageHeader title={t("nav.outlets")}>
+      <PagePeriod from={query.from} to={query.to} />
+    </PageHeader>
+  );
+  if (!res.ok) return <>{header}<ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const pages = Math.max(1, Math.ceil(res.data.total / 50));
-  const today = tashkentToday();
   const link = (p: number) => `/outlets${qs({ ...query, page: String(p) })}`;
-  const period = { from: query.from ?? `${today.slice(0, 7)}-01`, to: query.to ?? today };
 
   return (
     <>
-      <PageHeader title={t("nav.outlets")}>
-        <PeriodFilter
-          from={period.from}
-          to={period.to}
-          labels={{ from: t("period.from"), to: t("period.to"), apply: t("common.apply"), invalid: t("errors.date_invalid"), order: t("errors.period_order") }}
-        />
-      </PageHeader>
+      {header}
 
       <form className="flex flex-wrap items-center gap-3" action="/outlets">
         {query.from && <input type="hidden" name="from" value={query.from} />}

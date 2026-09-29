@@ -2,7 +2,7 @@ import { ApiError } from "@/components/app/api-error";
 import { DataAsOf } from "@/components/app/data-as-of";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
-import { PeriodFilter } from "@/components/app/period-filter";
+import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getT } from "@/i18n/server";
@@ -21,21 +21,22 @@ function Row({ label, value }: { label: string; value: string }) {
 export default async function Reconciliation({ searchParams }: PageProps<"/">) {
   const t = await getT();
   const sp = await searchParams;
-  const res = await apiGet<Summary>(`/reconciliation/summary${qs({ from: sp.from as string, to: sp.to as string })}`);
-  if (!res.ok) return <ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} />;
+  const from = typeof sp.from === "string" ? sp.from : undefined;
+  const to = typeof sp.to === "string" ? sp.to : undefined;
+  const res = await apiGet<Summary>(`/reconciliation/summary${qs({ from, to })}`);
+  const header = (
+    <PageHeader title={t("nav.reconciliation")} subtitle={t("app.subtitle")}>
+      <PagePeriod from={from} to={to} />
+    </PageHeader>
+  );
+  if (!res.ok) return <>{header}<ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const s = res.data;
   const goods = (Number(s.outlets.delivered) - Number(s.outlets.returned)).toFixed(2);
   const diff = (Number(goods) - Number(s.outlets.paid)).toFixed(2);
 
   return (
     <>
-      <PageHeader title={t("nav.reconciliation")} subtitle={t("app.subtitle")}>
-        <PeriodFilter
-          from={s.period.from}
-          to={s.period.to}
-          labels={{ from: t("period.from"), to: t("period.to"), apply: t("common.apply"), invalid: t("errors.date_invalid"), order: t("errors.period_order") }}
-        />
-      </PageHeader>
+      {header}
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         <DataAsOf iso={s.dataAsOf} label={(time) => t("data.as_of", { time })} never={t("data.never")} />
         <Text variant="caption">{t("data.window", { date: formatDate(`${s.windowStart}T00:00:00Z`) })}</Text>

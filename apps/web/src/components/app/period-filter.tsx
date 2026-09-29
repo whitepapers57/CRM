@@ -11,10 +11,11 @@ export interface PeriodLabels {
   apply: string;
   invalid: string;
   order: string;
+  beforeWindow: string;
 }
 
 /** Two dates, validated in place, written to ?from&to (page resets to 1). */
-export function PeriodFilter({ from, to, labels }: { from: string; to: string; labels: PeriodLabels }) {
+export function PeriodFilter({ from, to, min, labels }: { from: string; to: string; min?: string; labels: PeriodLabels }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -28,6 +29,7 @@ export function PeriodFilter({ from, to, labels }: { from: string; to: string; l
     if (!values.from) next.from = labels.invalid;
     if (!values.to) next.to = labels.invalid;
     if (!next.from && !next.to && values.from > values.to) next.from = labels.order;
+    if (!next.from && min && values.from < min) next.from = labels.beforeWindow;
     setErrors(next);
     if (next.from || next.to) return;
     const q = new URLSearchParams(params);
@@ -42,6 +44,7 @@ export function PeriodFilter({ from, to, labels }: { from: string; to: string; l
       <Field
         type="date"
         label={labels.from}
+        min={min}
         value={values.from}
         error={errors.from}
         onChange={(e) => {
@@ -52,6 +55,7 @@ export function PeriodFilter({ from, to, labels }: { from: string; to: string; l
       <Field
         type="date"
         label={labels.to}
+        min={min}
         value={values.to}
         error={errors.to}
         onChange={(e) => {

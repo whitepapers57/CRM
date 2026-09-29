@@ -84,6 +84,7 @@ export const messages = {
     "errors.retry": "Повторить",
     "errors.date_invalid": "Введите дату",
     "errors.period_order": "Дата «С» не может быть позже даты «По»",
+    "errors.before_window": "Данные хранятся только с {date}",
   },
   uz: {
     "app.title": "Distribution Finance",
@@ -169,6 +170,7 @@ export const messages = {
     "errors.retry": "Qayta urinish",
     "errors.date_invalid": "Sanani kiriting",
     "errors.period_order": "«Dan» sanasi «Gacha» sanasidan keyin bo'lishi mumkin emas",
+    "errors.before_window": "Ma'lumotlar faqat {date} dan beri saqlanadi",
   },
 } as const;
 
