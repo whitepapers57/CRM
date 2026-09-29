@@ -126,7 +126,15 @@ For the selected period: the goods-side totals (outlets, supplier) beside
 the cash-side totals, and the difference, which is the sum of the open
 balances above.
 
-### 4.6 Known risk
+### 4.6 Deferred: active settlements = passive settlements
+
+The owner requires active and passive settlements to be equal, as the
+diagram's "=" shows. Its exact definition (balance sheet актив = пассив, or
+receivables = payables) is deferred until the diagram's data is built and
+visible. Nothing in v1 may block it: keep purchase prices per line (cost of
+goods) and every cash movement, so either definition can be computed later.
+
+### 4.7 Known risk
 
 If Salesdoc was seeded with opening balances (`setBalance`) instead of
 building them from orders, computed outlet balances will differ from
