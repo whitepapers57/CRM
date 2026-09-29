@@ -116,6 +116,25 @@ describe('SyncService', () => {
     expect(await db.order.count()).toBe(2);
   });
 
+  it('keeps the old balance anchor when a movement resource failed in the same run', async () => {
+    // Review finding: a new anchor with stale movements gives wrong openings.
+    const balances = RESOURCES.find((r) => r.name === 'balances')!;
+    const client = {
+      async *pages(method: string) {
+        if (method === 'getOrder') throw new Error('Salesdoc 502');
+        yield { page: 1, rows: [{ SD_id: 'o1', balance: -700 }], total: 1 };
+      },
+    } as unknown as SalesdocClient;
+    const report = await new SyncService(db, client, [orders[0], balances]).run('incremental');
+    expect(report).toMatchObject({
+      results: [
+        { resource: 'orders', status: 'failed' },
+        { resource: 'balances', status: 'failed', error: expect.stringContaining('orders failed') },
+      ],
+    });
+    expect(await db.outletBalance.count()).toBe(0);
+  });
+
   it('refuses to start a second run while one is going', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));

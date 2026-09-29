@@ -26,6 +26,8 @@ export interface SyncStatus {
 export const SYNC_RESOURCES = Symbol('SYNC_RESOURCES');
 export const SYNC_CLOCK = Symbol('SYNC_CLOCK');
 const DAY = 24 * 60 * 60 * 1000;
+/** Resources whose rows are outlet movements (spec §4.1). */
+const MOVEMENT_RESOURCES = ['orders', 'returns', 'payments'];
 /**
  * Prisma cancels an interactive transaction after 5 s by default; a real page
  * of 1,000 orders with their lines took 8.6 s to save, and pruning a full
@@ -79,6 +81,13 @@ export class SyncService {
     for (const def of this.resources) {
       const run = await this.prisma.syncRun.create({ data: { method: def.name } });
       try {
+        const failedMovements = results
+          .filter((r) => r.status === 'failed' && MOVEMENT_RESOURCES.includes(r.resource))
+          .map((r) => r.resource);
+        if (def.name === 'balances' && failedMovements.length) {
+          // The anchor must describe the same moment as the stored movements.
+          throw new Error(`skipped: ${failedMovements.join(', ')} failed in this run`);
+        }
         const records = await this.runResource(def, kind);
         await this.prisma.syncRun.update({
           where: { id: run.id },
