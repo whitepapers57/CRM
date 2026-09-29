@@ -47,6 +47,12 @@ Every object carries `CS_id` (may have filial prefix, `F1-d0_123`), `SD_id`
 | Filials | `getFilials` | `filials` |
 | Write back payments / expenses / balances | `setPayment`, `setConsumption`, `setBalance`, `setCurrentBalance` | — |
 
+**`getOrder` returns only status 1 (New) unless told otherwise**, and it
+ignores `params.period`. Pass `filter.status: [1,2,3,4,5]` (New, Sent,
+Delivered, Closed, Cancelled), `filter.agent: "all"` and
+`filter.period.date: { from, to }` (`YYYY-MM-DD`). `debtDateExp` is
+`1970-01-01` when no due date is set.
+
 Result keys do not always match the method name — pass the right one to
 `SalesdocClient.fetchAll(method, resultKey)`.
 
