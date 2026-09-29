@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+
+# Salesdoc credentials and any other runtime secrets
+apps/api/data/*.json
+!apps/api/data/*.example.json
+
+# Prisma client, regenerated on install
+apps/api/src/generated/
+*.tsbuildinfo

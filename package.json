@@ -1,0 +1,15 @@
+{
+  "name": "distribution-finance",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @df/web",
+    "dev:api": "npm run start:dev -w @df/api",
+    "build": "npm run build -w @df/api && npm run build -w @df/web",
+    "test": "npm test -w @df/api",
+    "db:migrate": "npm run db:migrate -w @df/api",
+    "db:studio": "npm run db:studio -w @df/api"
+  }
+}

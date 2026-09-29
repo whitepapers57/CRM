@@ -1,0 +1,32 @@
+// Prisma 7: the connection URL lives in prisma.config.ts.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  runtime             = "nodejs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SyncStatus {
+  running
+  succeeded
+  failed
+}
+
+/// One pull of a Salesdoc method (getOrder, getPayment, getBalance, ...).
+model SyncRun {
+  id         String     @id @default(uuid())
+  method     String
+  status     SyncStatus @default(running)
+  records    Int        @default(0)
+  error      String?
+  startedAt  DateTime   @default(now())
+  finishedAt DateTime?
+
+  @@index([method, startedAt])
+}
