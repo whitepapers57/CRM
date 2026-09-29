@@ -45,8 +45,29 @@ export class SyncService {
     @Optional() @Inject(SYNC_CLOCK) private readonly now: () => Date = () => new Date(),
   ) {}
 
+  private queuedFull: Promise<SyncReport> | null = null;
+
+  /**
+   * One run at a time. A second incremental request is dropped (the next tick
+   * covers it), but a full run queues behind the running one: the nightly
+   * pass is what prunes deleted and out-of-window records, so it must not be
+   * lost to a collision with the 15-minute tick.
+   */
   run(kind: SyncKind): Promise<SyncReport | { alreadyRunning: true }> {
-    if (this.running) return Promise.resolve({ alreadyRunning: true });
+    if (this.running) {
+      if (kind !== 'full') return Promise.resolve({ alreadyRunning: true });
+      this.queuedFull ??= this.running
+        .catch(() => undefined)
+        .then(() => {
+          this.queuedFull = null;
+          return this.start('full');
+        });
+      return this.queuedFull;
+    }
+    return this.start(kind);
+  }
+
+  private start(kind: SyncKind): Promise<SyncReport> {
     this.running = this.runAll(kind).finally(() => {
       this.running = null;
     });

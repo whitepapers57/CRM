@@ -124,6 +124,24 @@ describe('SyncService', () => {
     await first;
   });
 
+  it('queues a full run behind a running incremental one instead of dropping it', async () => {
+    // Review finding: both crons fire at 03:00 and the nightly full pass was dropped.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const slow = {
+      async *pages() {
+        await gate;
+        yield { page: 1, rows: [], total: 0 };
+      },
+    } as unknown as SalesdocClient;
+    const svc = new SyncService(db, slow, orders);
+    const incremental = svc.run('incremental');
+    const full = svc.run('full');
+    release();
+    await incremental;
+    expect(await full).toMatchObject({ kind: 'full', results: [{ resource: 'orders', status: 'succeeded' }] });
+  });
+
   it('reports data as of the oldest successful resource', async () => {
     const t = new Date('2026-09-29T09:30:00Z');
     await new SyncService(db, fakeClient({ 1: [] }), orders, () => t).run('incremental');

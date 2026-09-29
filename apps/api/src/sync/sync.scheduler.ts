@@ -14,8 +14,11 @@ export class SyncScheduler {
     if (enabled()) await this.sync.run('incremental');
   }
 
-  /** A nightly full pass removes records Salesdoc deleted. */
-  @Cron('0 3 * * *', { timeZone: 'Asia/Tashkent' })
+  /**
+   * A nightly full pass removes records Salesdoc deleted and trims the window.
+   * 03:07, off the 15-minute grid, so it does not collide with the tick.
+   */
+  @Cron('7 3 * * *', { timeZone: 'Asia/Tashkent' })
   async nightly() {
     if (enabled()) await this.sync.run('full');
   }
