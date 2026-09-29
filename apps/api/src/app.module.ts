@@ -5,6 +5,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
 import { SalesdocModule } from './salesdoc/salesdoc.module.js';
 import { SettlementsModule } from './settlements/settlements.module.js';
+import { WarehouseModule } from './warehouse/warehouse.module.js';
 import { SyncModule } from './sync/sync.module.js';
 
 @Module({
@@ -15,6 +16,7 @@ import { SyncModule } from './sync/sync.module.js';
     ScheduleModule.forRoot(),
     SyncModule,
     SettlementsModule,
+    WarehouseModule,
   ],
   controllers: [HealthController],
 })
