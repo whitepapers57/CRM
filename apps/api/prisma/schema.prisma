@@ -282,6 +282,9 @@ model OutletBalance {
 model SyncCursor {
   resource      String    @id
   lastSuccessAt DateTime?
+  /// Start of the last completed full pass: a prune deletes only rows that
+  /// neither that pass nor the current one saw.
+  lastFullStartedAt DateTime?
   fullStartedAt DateTime?
   nextPage      Int?
 }

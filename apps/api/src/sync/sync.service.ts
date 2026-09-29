@@ -162,11 +162,16 @@ export class SyncService {
       );
     }
 
+    // Salesdoc ignores params.sort, so a row can slip across a page boundary
+    // unseen when data shifts mid-pass. Delete only rows that neither this
+    // pass nor the previous completed one saw.
+    const previous = await this.prisma.syncCursor.findUnique({ where: { resource: def.name } });
+    const pruneBefore = previous?.lastFullStartedAt ?? null;
     await this.prisma.$transaction(async (tx) => {
-      await def.prune(tx, startedAt);
+      if (pruneBefore) await def.prune(tx, pruneBefore);
       await tx.syncCursor.update({
         where: { resource: def.name },
-        data: { lastSuccessAt: startedAt, fullStartedAt: null, nextPage: null },
+        data: { lastSuccessAt: startedAt, lastFullStartedAt: startedAt, fullStartedAt: null, nextPage: null },
       });
     }, TX);
     return records;

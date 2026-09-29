@@ -91,8 +91,20 @@ describe('SyncService', () => {
     await new SyncService(db, fakeClient({ 1: [order('a', 3)] }), orders).run('incremental');
     expect(await db.order.count()).toBe(2);
 
+    // Two complete full passes must miss a row before it is deleted (see below).
+    await new SyncService(db, fakeClient({ 1: [order('a', 3)] }), orders).run('full');
     await new SyncService(db, fakeClient({ 1: [order('a', 3)] }), orders).run('full');
     expect((await db.order.findMany()).map((o) => o.sdId)).toEqual(['a']);
+  });
+
+  it('keeps a row that one full pass missed, because data shifted between pages', async () => {
+    // Review finding: Salesdoc ignores params.sort, so an insert ahead of the
+    // current page pushes one row across the boundary unseen.
+    await new SyncService(db, fakeClient({ 1: [order('a', 3), order('b', 3)] }), orders).run('full');
+    await new SyncService(db, fakeClient({ 1: [order('a', 3)] }), orders).run('full'); // 'b' skipped once
+    expect((await db.order.findMany({ orderBy: { sdId: 'asc' } })).map((o) => o.sdId)).toEqual(['a', 'b']);
+    await new SyncService(db, fakeClient({ 1: [order('a', 3), order('b', 3)] }), orders).run('full');
+    expect(await db.order.count()).toBe(2);
   });
 
   it("gives a slow page more than Prisma's default 5-second transaction", async () => {
