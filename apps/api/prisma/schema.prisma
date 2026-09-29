@@ -30,3 +30,248 @@ model SyncRun {
 
   @@index([method, startedAt])
 }
+
+// ─── Mirrored from Salesdoc (read-only in the app) ───────────────────────
+// Every mirrored row: sdId = Salesdoc SD_id, raw = the row as received,
+// seenAt = when a sync last saw it (rows not seen by a completed full pass
+// are deleted). References between mirrored tables are plain sdId strings
+// without foreign keys: Salesdoc may reference rows it no longer lists.
+
+model PaymentType {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  short  String?
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Cashbox {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Warehouse {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Supplier {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Agent {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Expeditor {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
+model Product {
+  sdId         String   @id
+  csId         String?
+  code1c       String?
+  name         String
+  active       Boolean
+  packQuantity Int?
+  raw          Json
+  seenAt       DateTime
+}
+
+/// Current stock; sdId = "<warehouseSdId>:<productSdId>".
+model StockLevel {
+  sdId          String   @id
+  warehouseSdId String
+  productSdId   String
+  productName   String
+  quantity      Decimal  @db.Decimal(18, 3)
+  seenAt        DateTime
+
+  @@index([warehouseSdId])
+}
+
+model Outlet {
+  sdId          String    @id
+  csId          String?
+  code1c        String?
+  name          String
+  firmName      String?
+  inn           String?
+  address       String?
+  active        Boolean
+  expeditorSdId String?
+  updatedAtSd   DateTime?
+  raw           Json
+  seenAt        DateTime
+}
+
+/// Goods receipt from a supplier; sdId comes from purchase_id without its filial prefix.
+model Purchase {
+  sdId          String         @id
+  csId          String?
+  date          DateTime
+  updatedAtSd   DateTime?
+  warehouseSdId String?
+  supplierSdId  String?
+  total         Decimal        @db.Decimal(18, 2)
+  raw           Json
+  seenAt        DateTime
+  lines         PurchaseLine[]
+
+  @@index([date])
+}
+
+model PurchaseLine {
+  id           Int      @id @default(autoincrement())
+  purchaseSdId String
+  purchase     Purchase @relation(fields: [purchaseSdId], references: [sdId], onDelete: Cascade)
+  productSdId  String?
+  productName  String
+  quantity     Decimal  @db.Decimal(18, 3)
+  price        Decimal  @db.Decimal(18, 2)
+  amount       Decimal  @db.Decimal(18, 2)
+
+  @@index([purchaseSdId])
+}
+
+model Order {
+  sdId               String      @id
+  csId               String?
+  code1c             String?
+  status             Int
+  dateDocument       DateTime
+  dateCreate         DateTime?
+  dateDelivered      DateTime?
+  totalSumma         Decimal     @db.Decimal(18, 2)
+  discountSumma      Decimal     @db.Decimal(18, 2)
+  totalAfterDiscount Decimal     @db.Decimal(18, 2)
+  totalReturnsSumma  Decimal     @db.Decimal(18, 2)
+  debtDateExp        DateTime?   @db.Date
+  outletSdId         String?
+  agentSdId          String?
+  expeditorSdId      String?
+  warehouseSdId      String?
+  paymentTypeSdId    String?
+  raw                Json
+  seenAt             DateTime
+  lines              OrderLine[]
+
+  @@index([outletSdId, status, dateDocument])
+  @@index([dateDocument])
+}
+
+model OrderLine {
+  id          Int     @id @default(autoincrement())
+  orderSdId   String
+  order       Order   @relation(fields: [orderSdId], references: [sdId], onDelete: Cascade)
+  productSdId String?
+  productName String?
+  quantity    Decimal @db.Decimal(18, 3)
+  price       Decimal @db.Decimal(18, 2)
+  discount    Decimal @db.Decimal(18, 2)
+  summa       Decimal @db.Decimal(18, 2)
+  returned    Decimal @db.Decimal(18, 3)
+
+  @@index([orderSdId])
+}
+
+/// A return from an outlet (getOrderDefect). amount is positive.
+/// Not named "Return": `return` is a JavaScript keyword and would become a client property.
+model OutletReturn {
+  sdId          String       @id
+  csId          String?
+  status        Int
+  dateDocument  DateTime
+  amount        Decimal      @db.Decimal(18, 2)
+  outletSdId    String?
+  agentSdId     String?
+  expeditorSdId String?
+  warehouseSdId String?
+  reason        String?
+  raw           Json
+  seenAt        DateTime
+  lines         ReturnLine[]
+
+  @@index([outletSdId, status, dateDocument])
+}
+
+model ReturnLine {
+  id           Int          @id @default(autoincrement())
+  returnSdId   String
+  outletReturn OutletReturn @relation(fields: [returnSdId], references: [sdId], onDelete: Cascade)
+  productSdId  String?
+  quantity     Decimal      @db.Decimal(18, 3)
+  price        Decimal      @db.Decimal(18, 2)
+  summa        Decimal      @db.Decimal(18, 2)
+
+  @@index([returnSdId])
+}
+
+model Payment {
+  sdId            String              @id
+  csId            String?
+  code1c          String?
+  paymentDate     DateTime
+  amount          Decimal             @db.Decimal(18, 2)
+  transactionType Int
+  paymentTypeSdId String?
+  outletSdId      String?
+  agentSdId       String?
+  cashboxSdId     String?
+  comment         String?
+  raw             Json
+  seenAt          DateTime
+  allocations     PaymentAllocation[]
+
+  @@index([outletSdId, transactionType, paymentDate])
+}
+
+model PaymentAllocation {
+  id          Int     @id @default(autoincrement())
+  paymentSdId String
+  payment     Payment @relation(fields: [paymentSdId], references: [sdId], onDelete: Cascade)
+  orderSdId   String
+  amount      Decimal @db.Decimal(18, 2)
+
+  @@index([paymentSdId])
+  @@index([orderSdId])
+}
+
+/// Sync progress per resource (see SyncService).
+model SyncCursor {
+  resource      String    @id
+  lastSuccessAt DateTime?
+  fullStartedAt DateTime?
+  nextPage      Int?
+}
