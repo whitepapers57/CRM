@@ -7,6 +7,7 @@ describe('API (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.SYNC_SCHEDULE = 'off';
     process.env.SALESDOC_CREDENTIALS_FILE = 'data/__missing__.json';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -28,6 +29,11 @@ describe('API (e2e)', () => {
       .get('/salesdoc/status')
       .expect(200)
       .expect({ configured: false, connected: false });
+  });
+
+  it('GET /sync/status lists every resource', async () => {
+    const res = await request(app.getHttpServer()).get('/sync/status').expect(200);
+    expect(res.body.resources.map((r: { resource: string }) => r.resource)).toContain('payments');
   });
 
   afterAll(async () => {
