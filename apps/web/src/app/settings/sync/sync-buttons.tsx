@@ -8,7 +8,7 @@ import { runSync } from "./actions";
 export function SyncButtons({
   labels,
 }: {
-  labels: { run: string; full: string; running: string; alreadyRunning: string; failed: string };
+  labels: { run: string; full: string; running: string; alreadyRunning: string; started: string; failed: string };
 }) {
   const [pending, start] = useTransition();
   const [kind, setKind] = useState<"incremental" | "full" | null>(null);
@@ -20,7 +20,7 @@ export function SyncButtons({
     start(async () => {
       const r = await runSync(k);
       if (!r.ok) setMessage(r.message || labels.failed);
-      else if (r.alreadyRunning) setMessage(labels.alreadyRunning);
+      else setMessage(r.alreadyRunning ? labels.alreadyRunning : labels.started);
     });
   };
 
@@ -38,7 +38,7 @@ export function SyncButtons({
         </Button>
       </div>
       {pending && <Text variant="caption" role="status">{labels.running}</Text>}
-      {message && <Text variant="error" role="alert">{message}</Text>}
+      {message && <Text variant="caption" role="status">{message}</Text>}
     </div>
   );
 }

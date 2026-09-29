@@ -69,6 +69,10 @@ export class SyncService {
     return this.start(kind);
   }
 
+  isRunning(): boolean {
+    return this.running !== null;
+  }
+
   private start(kind: SyncKind): Promise<SyncReport> {
     this.running = this.runAll(kind).finally(() => {
       this.running = null;

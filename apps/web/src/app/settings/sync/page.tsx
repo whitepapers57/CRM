@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getT } from "@/i18n/server";
 import { apiGet, type SyncStatus } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
+import { AutoRefresh } from "@/components/app/auto-refresh";
 import { SyncButtons } from "./sync-buttons";
 
 /** Real instants (sync times) shown in Tashkent wall time. */
@@ -24,9 +25,11 @@ export default async function SyncPage() {
     <>
       <PageHeader title={t("sync.title")}>
         <SyncButtons
-          labels={{ run: t("sync.run"), full: t("sync.run_full"), running: t("sync.running"), alreadyRunning: t("sync.already_running"), failed: t("errors.unknown") }}
+          labels={{ run: t("sync.run"), full: t("sync.run_full"), running: t("sync.running"), alreadyRunning: t("sync.already_running"), started: t("sync.started"), failed: t("errors.unknown") }}
         />
       </PageHeader>
+      <AutoRefresh active={s.running} />
+      {s.running && <Text variant="caption" role="status">{t("sync.running")}</Text>}
       <DataAsOf iso={s.dataAsOf} label={(time) => t("data.as_of", { time })} never={t("data.never")} />
       <div className="overflow-x-auto rounded-lg border">
         <Table>
