@@ -1,6 +1,7 @@
 import type { Prisma } from '../generated/prisma/client.js';
 import {
   mapAgent,
+  mapBalance,
   mapCashbox,
   mapExpeditor,
   mapOrder,
@@ -25,6 +26,8 @@ export interface ResourceDef {
   mode: 'replace' | 'incremental';
   filter?: Record<string, unknown>;
   updatedBetween?: (from: string, to: string) => Record<string, unknown>;
+  /** Full passes only: limit documents to those dated in the stored window. */
+  dated?: (from: string, to: string) => Record<string, unknown>;
   save(tx: Tx, rows: Raw[], seenAt: Date): Promise<number>;
   prune(tx: Tx, before: Date): Promise<number>;
 }
@@ -78,6 +81,7 @@ const m = (tx: Tx) => ({
   product: tx.product as unknown as FlatModel,
   stockLevel: tx.stockLevel as unknown as FlatModel,
   outlet: tx.outlet as unknown as FlatModel,
+  outletBalance: tx.outletBalance as unknown as FlatModel,
   purchase: tx.purchase as unknown as FlatModel,
   purchaseLine: tx.purchaseLine as unknown as FlatModel,
   order: tx.order as unknown as FlatModel,
@@ -110,6 +114,7 @@ function flat(
 const updatePeriod = (key: string) => (from: string, to: string) => ({
   period: { [key]: { from, to } },
 });
+const dated = updatePeriod('date');
 
 /** In sync order: reference data first, then documents. */
 export const RESOURCES: ResourceDef[] = [
@@ -143,6 +148,7 @@ export const RESOURCES: ResourceDef[] = [
     method: 'getPurchase',
     resultKey: 'warehouse',
     mode: 'incremental',
+    dated,
     updatedBetween: updatePeriod('dateUpdate'),
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).purchase, m(tx).purchaseLine, 'purchaseSdId', rows.map((r) => mapPurchase(r, seenAt))),
@@ -154,6 +160,7 @@ export const RESOURCES: ResourceDef[] = [
     resultKey: 'order',
     mode: 'incremental',
     filter: { status: [1, 2, 3, 4, 5], agent: 'all' },
+    dated,
     updatedBetween: updatePeriod('dateUpdate'),
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).order, m(tx).orderLine, 'orderSdId', rows.map((r) => mapOrder(r, seenAt))),
@@ -165,6 +172,7 @@ export const RESOURCES: ResourceDef[] = [
     resultKey: 'order',
     mode: 'incremental',
     filter: { status: [1, 2, 3, 4, 5] },
+    dated,
     updatedBetween: updatePeriod('dateUpdate'),
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).ret, m(tx).returnLine, 'returnSdId', rows.map((r) => mapReturn(r, seenAt))),
@@ -176,9 +184,12 @@ export const RESOURCES: ResourceDef[] = [
     resultKey: 'payment',
     mode: 'incremental',
     // Never filter by transactionType: Salesdoc applies it after paging.
+    dated,
     updatedBetween: updatePeriod('dateUpdate'),
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).payment, m(tx).allocation, 'paymentSdId', rows.map((r) => mapPayment(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).payment, before),
   },
+  // Last, so the anchor is read after the movements it anchors (spec §4.1).
+  flat('balances', 'getBalance', 'balance', 'outletBalance', mapBalance),
 ];

@@ -61,6 +61,16 @@ describe('SyncService', () => {
     expect((await db.order.findMany({ orderBy: { sdId: 'asc' } })).map((o) => o.sdId)).toEqual(['a', 'b']);
   });
 
+  it('limits a full pass to documents dated in the window, with a week of margin', async () => {
+    const calls: Call[] = [];
+    const now = new Date('2026-09-29T08:00:00Z');
+    await new SyncService(db, fakeClient({ 1: [] }, calls), orders, () => now).run('full');
+    expect(calls[0].params.filter).toEqual({
+      status: [1, 2, 3, 4, 5], agent: 'all',
+      period: { date: { from: '2026-06-24', to: '2026-09-29' } },
+    });
+  });
+
   it('asks only for changes since the last success, with a day of overlap', async () => {
     const t0 = new Date('2026-09-28T20:00:00Z'); // 29 Sep in Tashkent
     await new SyncService(db, fakeClient({ 1: [order('a', 2)] }), orders, () => t0).run('full');

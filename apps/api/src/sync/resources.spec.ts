@@ -21,7 +21,7 @@ describe('resources', () => {
     expect(names.indexOf('outlets')).toBeLessThan(names.indexOf('orders'));
     expect(names).toEqual(
       expect.arrayContaining(['paymentTypes', 'cashboxes', 'warehouses', 'suppliers', 'agents',
-        'expeditors', 'products', 'stock', 'outlets', 'purchases', 'orders', 'returns', 'payments']),
+        'expeditors', 'products', 'stock', 'outlets', 'balances', 'purchases', 'orders', 'returns', 'payments']),
     );
   });
 
@@ -29,6 +29,27 @@ describe('resources', () => {
     expect(byName('orders').filter).toEqual({ status: [1, 2, 3, 4, 5], agent: 'all' });
     expect(byName('returns').filter).toEqual({ status: [1, 2, 3, 4, 5] });
     expect(byName('payments').filter).toBeUndefined();
+  });
+
+  it('limits documents to a date window, and nothing else', () => {
+    for (const n of ['purchases', 'orders', 'returns', 'payments']) {
+      expect(byName(n).dated?.('2026-06-24', '2026-09-29')).toEqual({
+        period: { date: { from: '2026-06-24', to: '2026-09-29' } },
+      });
+    }
+    for (const n of ['outlets', 'balances', 'products', 'stock']) {
+      expect(byName(n).dated).toBeUndefined();
+    }
+  });
+
+  it('replaces the whole balance snapshot on every run', async () => {
+    const balances = byName('balances');
+    expect(balances.mode).toBe('replace');
+    await db.$transaction((tx) =>
+      balances.save(tx, [{ SD_id: 'o1', name: 'Star Shop', balance: -2500000 }], t1),
+    );
+    const row = await db.outletBalance.findUniqueOrThrow({ where: { sdId: 'o1' } });
+    expect(row.debt.toString()).toBe('2500000');
   });
 
   it('replaces an order and its lines when it arrives again', async () => {

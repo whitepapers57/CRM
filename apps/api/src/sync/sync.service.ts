@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service.js';
 import { SalesdocClient } from '../salesdoc/salesdoc.client.js';
 import { RESOURCES, type ResourceDef } from './resources.js';
 import { tashkentDay } from './salesdoc-date.js';
+import { syncWindow } from './window.js';
 
 export type SyncKind = 'incremental' | 'full';
 
@@ -99,10 +100,16 @@ export class SyncService {
       update: { fullStartedAt: startedAt, nextPage: firstPage },
     });
 
+    const window = syncWindow(this.now());
+    const filter = {
+      ...(def.filter ?? {}),
+      ...(def.dated ? def.dated(window.fetchFrom, window.to) : {}),
+    };
+
     let records = 0;
     for await (const { page, rows } of this.client.pages(def.method, def.resultKey, {
       page: firstPage,
-      ...(def.filter ? { filter: def.filter } : {}),
+      ...(Object.keys(filter).length ? { filter } : {}),
     })) {
       const seenAt = this.now();
       records += await this.prisma.$transaction(async (tx) => {

@@ -42,6 +42,15 @@ export const mapOutlet = (r: Raw, seenAt: Date) => ({
   updatedAtSd: parseSdDate(r.updatedAt),
 });
 
+/** Salesdoc reports debt as a negative balance; we store the debt itself. */
+export const mapBalance = (r: Raw, seenAt: Date) => ({
+  sdId: String(r.SD_id),
+  name: r.name ?? null,
+  debt: money(r.balance).neg(),
+  raw: json(r),
+  seenAt,
+});
+
 /** getStock returns one row per warehouse with its products inside. */
 export function mapStock(r: Raw, seenAt: Date) {
   const warehouseSdId = String(r.SD_id);

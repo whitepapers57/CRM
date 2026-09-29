@@ -7,6 +7,7 @@ import { Text } from "@/components/app/text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type Summary } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -35,7 +36,10 @@ export default async function Reconciliation({ searchParams }: PageProps<"/">) {
           labels={{ from: t("period.from"), to: t("period.to"), apply: t("common.apply"), invalid: t("errors.date_invalid"), order: t("errors.period_order") }}
         />
       </PageHeader>
-      <DataAsOf iso={s.dataAsOf} label={(time) => t("data.as_of", { time })} never={t("data.never")} />
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <DataAsOf iso={s.dataAsOf} label={(time) => t("data.as_of", { time })} never={t("data.never")} />
+        <Text variant="caption">{t("data.window", { date: formatDate(`${s.windowStart}T00:00:00Z`) })}</Text>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[

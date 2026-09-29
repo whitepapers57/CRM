@@ -46,21 +46,32 @@ export class SettlementsService {
     private readonly sync: SyncService,
   ) {}
 
-  /** One row per outlet with opening, period movements and closing. */
+  /**
+   * One row per outlet with opening, period movements and closing. Only a
+   * window of history is stored, so balances are anchored on Salesdoc's
+   * current balance (spec §4.1): balance at t = anchor − Σ movements dated ≥ t.
+   */
   private balancesSql(p: Period) {
     return Prisma.sql`
       WITH mv AS (${MOVEMENTS}),
+      ids AS (SELECT outlet FROM mv UNION SELECT "sdId" FROM "OutletBalance"),
       agg AS (
-        SELECT outlet,
-          SUM(CASE WHEN d < ${p.fromDay}::timestamp THEN amount ELSE 0 END) AS opening,
-          SUM(CASE WHEN d >= ${p.fromDay}::timestamp AND kind = 'order' THEN amount ELSE 0 END) AS delivered,
-          SUM(CASE WHEN d >= ${p.fromDay}::timestamp AND kind = 'return' THEN -amount ELSE 0 END) AS returned,
-          SUM(CASE WHEN d >= ${p.fromDay}::timestamp AND kind = 'payment' THEN -amount ELSE 0 END) AS paid,
-          SUM(amount) AS closing
-        FROM mv WHERE d < ${p.toExclusiveDay}::timestamp
-        GROUP BY outlet
+        SELECT ids.outlet,
+          COALESCE(MAX(b.debt), 0) AS anchor,
+          COALESCE(SUM(CASE WHEN mv.d >= ${p.fromDay}::timestamp THEN mv.amount END), 0) AS after_from,
+          COALESCE(SUM(CASE WHEN mv.d >= ${p.toExclusiveDay}::timestamp THEN mv.amount END), 0) AS after_to,
+          COALESCE(SUM(CASE WHEN mv.d >= ${p.fromDay}::timestamp AND mv.d < ${p.toExclusiveDay}::timestamp AND mv.kind = 'order' THEN mv.amount END), 0) AS delivered,
+          COALESCE(SUM(CASE WHEN mv.d >= ${p.fromDay}::timestamp AND mv.d < ${p.toExclusiveDay}::timestamp AND mv.kind = 'return' THEN -mv.amount END), 0) AS returned,
+          COALESCE(SUM(CASE WHEN mv.d >= ${p.fromDay}::timestamp AND mv.d < ${p.toExclusiveDay}::timestamp AND mv.kind = 'payment' THEN -mv.amount END), 0) AS paid
+        FROM ids
+        LEFT JOIN mv ON mv.outlet = ids.outlet
+        LEFT JOIN "OutletBalance" b ON b."sdId" = ids.outlet
+        GROUP BY ids.outlet
       )
-      SELECT agg.*, COALESCE(o.name, agg.outlet) AS name, o."firmName", o.inn, o."expeditorSdId"
+      SELECT agg.outlet, agg.delivered, agg.returned, agg.paid,
+        agg.anchor - agg.after_from AS opening,
+        agg.anchor - agg.after_to AS closing,
+        COALESCE(o.name, agg.outlet) AS name, o."firmName", o.inn, o."expeditorSdId"
       FROM agg LEFT JOIN "Outlet" o ON o."sdId" = agg.outlet`;
   }
 
@@ -104,13 +115,15 @@ export class SettlementsService {
   async outletStatement(outletSdId: string, p: Period) {
     const outlet = await this.prisma.outlet.findUnique({ where: { sdId: outletSdId } });
     const [{ opening }] = await this.prisma.$queryRaw<Array<{ opening: Dec | null }>>`
-      SELECT SUM(amount) AS opening FROM (${MOVEMENTS}) mv
-      WHERE outlet = ${outletSdId} AND d < ${p.fromDay}::timestamp`;
+      SELECT COALESCE((SELECT debt FROM "OutletBalance" WHERE "sdId" = ${outletSdId}), 0)
+        - COALESCE((SELECT SUM(amount) FROM (${MOVEMENTS}) mv
+                    WHERE outlet = ${outletSdId} AND d >= ${p.fromDay}::timestamp), 0) AS opening`;
     const moves = await this.prisma.$queryRaw<Array<{ kind: 'order' | 'return' | 'payment'; sdId: string; d: Date; amount: Dec }>>`
       SELECT kind, "sdId", d, amount FROM (${MOVEMENTS}) mv
       WHERE outlet = ${outletSdId} AND d >= ${p.fromDay}::timestamp AND d < ${p.toExclusiveDay}::timestamp
       ORDER BY d, kind, "sdId"`;
-    if (!outlet && moves.length === 0 && opening === null) {
+    const anchored = await this.prisma.outletBalance.findUnique({ where: { sdId: outletSdId } });
+    if (!outlet && !anchored && moves.length === 0) {
       throw new NotFoundException(`Outlet ${outletSdId} not found`);
     }
 
@@ -135,7 +148,8 @@ export class SettlementsService {
   /** §4.2 goods side; supplier payments arrive with the cash-entries plan. */
   async supplierStatement(p: Period) {
     const [{ opening }] = await this.prisma.$queryRaw<Array<{ opening: Dec | null }>>`
-      SELECT SUM(total) AS opening FROM "Purchase" WHERE date < ${p.fromDay}::timestamp`;
+      SELECT SUM(total) AS opening FROM "Purchase"
+      WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp`;
     const purchases = await this.prisma.purchase.findMany({
       where: { date: { gte: p.from, lt: p.toExclusive } },
       orderBy: [{ date: 'asc' }, { sdId: 'asc' }],
@@ -171,6 +185,7 @@ export class SettlementsService {
     const { dataAsOf } = await this.sync.status();
     return {
       period: { from: p.fromDay, to: p.toDay },
+      windowStart: p.windowStart,
       dataAsOf,
       outlets: {
         receivable: s(o.receivable),

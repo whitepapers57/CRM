@@ -48,7 +48,7 @@ describe('WarehouseService', () => {
         lines: { create: [{ productSdId: 'p1', productName: 'Дюшес 1.5', quantity: 100, price: 15, amount: 1500 }] },
       },
     });
-    const list = await svc.purchases(parsePeriod('2026-09-01', '2026-09-30'));
+    const list = await svc.purchases(parsePeriod('2026-09-01', '2026-09-30', '2026-09-29'));
     expect(list.total).toBe('1500.00');
     expect(list.rows[0]).toMatchObject({ sdId: 'd0_432', warehouseName: 'Нич склад основной', supplierName: 'Основной поставщик', lineCount: 1 });
 

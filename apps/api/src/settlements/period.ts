@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { tashkentDay } from '../sync/salesdoc-date.js';
+import { syncWindow } from '../sync/window.js';
 
 export interface Period {
   /** For Prisma client queries. */
@@ -9,6 +10,8 @@ export interface Period {
   fromDay: string;
   toDay: string;
   toExclusiveDay: string;
+  /** First day of the stored window (spec §4); nothing earlier exists. */
+  windowStart: string;
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -28,6 +31,17 @@ export function parsePeriod(from?: string, to?: string, today = tashkentDay(new 
   const start = day(fromDay, 'from');
   const end = day(toDay, 'to');
   if (start > end) throw new BadRequestException('from must not be after to');
+  const windowStart = syncWindow(new Date(`${today}T12:00:00+05:00`)).start;
+  if (fromDay < windowStart) {
+    throw new BadRequestException(`from must not be before ${windowStart}`);
+  }
   const toExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-  return { from: start, toExclusive, fromDay, toDay, toExclusiveDay: toExclusive.toISOString().slice(0, 10) };
+  return {
+    from: start,
+    toExclusive,
+    fromDay,
+    toDay,
+    toExclusiveDay: toExclusive.toISOString().slice(0, 10),
+    windowStart,
+  };
 }

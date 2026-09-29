@@ -35,6 +35,7 @@ export function qs(params: Record<string, string | undefined>): string {
 
 export interface Summary {
   period: { from: string; to: string };
+  windowStart: string;
   dataAsOf: string | null;
   outlets: { receivable: string; prepaid: string; delivered: string; returned: string; paid: string };
   supplier: { received: string; paid: string; owed: string };

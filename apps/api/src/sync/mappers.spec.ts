@@ -1,4 +1,5 @@
 import {
+  mapBalance,
   mapOrder,
   mapOutlet,
   mapPayment,
@@ -134,5 +135,14 @@ describe('mappers', () => {
       seenAt,
     );
     expect(row.amount.toString()).toBe('-350985.54');
+  });
+
+  it('turns a Salesdoc balance into our debt (negative balance = owes us)', () => {
+    const b = mapBalance(
+      { CS_id: 'f5-m4_386', SD_id: 'm4_386', name: 'BEХRUZ MARKET', active: true, balance: -350985.54000000004 },
+      seenAt,
+    );
+    expect(b).toMatchObject({ sdId: 'm4_386', name: 'BEХRUZ MARKET', seenAt });
+    expect(b.debt.toString()).toBe('350985.54');
   });
 });
