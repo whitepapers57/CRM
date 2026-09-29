@@ -22,10 +22,26 @@ npm run dev:web             # http://localhost:3000
   `salesdoc.example.json`). Gitignored; re-read on change, no restart needed.
 - `apps/web` reads `API_URL` (default `http://localhost:4000/api`).
 
+## Database
+
+PostgreSQL on **Supabase** (project `distribution-finance`, eu-central-1, free
+plan). `DATABASE_URL` in `apps/api/.env` uses the **session pooler**
+(`aws-1-eu-central-1.pooler.supabase.com:5432`); the direct host is IPv6-only.
+Only the current month and the two before it are mirrored (~50 MB of the
+500 MB free quota). Tests use a local database (`DATABASE_URL_TEST`).
+
 ## Endpoints
 
 - `GET /api/health` — API and database.
 - `GET /api/salesdoc/status` — credentials present and login works.
+- `POST /api/sync/run` `{ kind: "incremental" | "full" }` — starts a sync (202); `GET /api/sync/status`.
+- `GET /api/reconciliation/summary?from&to`
+- `GET /api/outlets/balances?from&to&search&agent&expeditor&nonZero&page`, `GET /api/outlets/filters`, `GET /api/outlets/:sdId/statement?from&to`
+- `GET /api/supplier/statement?from&to`
+- `GET /api/warehouse/stock`, `GET /api/warehouse/purchases?from&to`, `GET /api/warehouse/purchases/:sdId`
+
+The API syncs every 15 minutes and does a full pass at 03:07 (Tashkent) when
+`SYNC_SCHEDULE=on`.
 
 ## Tests
 

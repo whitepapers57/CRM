@@ -40,7 +40,7 @@ export function PeriodFilter({ from, to, min, labels }: { from: string; to: stri
   }
 
   return (
-    <form onSubmit={apply} className="flex flex-wrap items-start gap-3">
+    <form onSubmit={apply} noValidate className="flex flex-wrap items-start gap-3">
       <Field
         type="date"
         label={labels.from}

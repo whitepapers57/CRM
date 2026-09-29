@@ -67,3 +67,18 @@ Result keys do not always match the method name — pass the right one to
 Some instances run in "contragent" mode: the client is a salepoint, the
 contragent is the legal entity that owns the money. There `getBalance`
 returns balances per contragent. Detected by the server; we cannot change it.
+
+## Findings from building the sync (29 Sep 2026)
+
+- `getPayment` `filter.transactionType` is applied after paging: pages come
+  back short and `page * limit >= total` stops early. Never filter by it.
+- Payment `transactionType` 9 (shelf return) mirrors a return already in
+  `getOrderDefect`; only type 3 is outlet cash.
+- `params.sort` is ignored (ASC and DESC return the same order) on getOrder,
+  getPayment, getPurchase, getOrderDefect.
+- `getPurchase` and `getBalance` ignore `limit` and return everything on every
+  page; dedupe by id.
+- `filter.period.date` works (full pages) on getOrder, getOrderDefect,
+  getPayment and getPurchase; `filter.period.dateUpdate` works for incremental
+  pulls.
+
