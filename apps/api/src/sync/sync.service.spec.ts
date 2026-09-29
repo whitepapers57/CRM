@@ -85,6 +85,19 @@ describe('SyncService', () => {
     expect((await db.order.findMany()).map((o) => o.sdId)).toEqual(['a']);
   });
 
+  it("gives a slow page more than Prisma's default 5-second transaction", async () => {
+    // A real page of 1,000 orders with their lines took 8.6 s to save.
+    const slow = {
+      ...orders[0],
+      save: async (...args: Parameters<(typeof orders)[0]['save']>) => {
+        await new Promise((r) => setTimeout(r, 5500));
+        return orders[0].save(...args);
+      },
+    };
+    const report = await new SyncService(db, fakeClient({ 1: [order('a', 3)] }), [slow]).run('full');
+    expect(report).toMatchObject({ results: [{ status: 'succeeded', records: 1 }] });
+  }, 20_000);
+
   it('refuses to start a second run while one is going', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));

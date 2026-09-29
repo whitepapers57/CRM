@@ -25,6 +25,12 @@ export interface SyncStatus {
 export const SYNC_RESOURCES = Symbol('SYNC_RESOURCES');
 export const SYNC_CLOCK = Symbol('SYNC_CLOCK');
 const DAY = 24 * 60 * 60 * 1000;
+/**
+ * Prisma cancels an interactive transaction after 5 s by default; a real page
+ * of 1,000 orders with their lines took 8.6 s to save, and pruning a full
+ * pass can delete tens of thousands of rows.
+ */
+const TX = { timeout: 5 * 60 * 1000, maxWait: 30 * 1000 };
 
 @Injectable()
 export class SyncService {
@@ -103,7 +109,7 @@ export class SyncService {
         const n = await def.save(tx, rows as Record<string, unknown>[], seenAt);
         await tx.syncCursor.update({ where: { resource: def.name }, data: { nextPage: page + 1 } });
         return n;
-      });
+      }, TX);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -112,7 +118,7 @@ export class SyncService {
         where: { resource: def.name },
         data: { lastSuccessAt: startedAt, fullStartedAt: null, nextPage: null },
       });
-    });
+    }, TX);
     return records;
   }
 
@@ -126,8 +132,9 @@ export class SyncService {
     let records = 0;
     for await (const { rows } of this.client.pages(def.method, def.resultKey, { filter })) {
       const seenAt = this.now();
-      records += await this.prisma.$transaction((tx) =>
-        def.save(tx, rows as Record<string, unknown>[], seenAt),
+      records += await this.prisma.$transaction(
+        (tx) => def.save(tx, rows as Record<string, unknown>[], seenAt),
+        TX,
       );
     }
     await this.prisma.syncCursor.update({
