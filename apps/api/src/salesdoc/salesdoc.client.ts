@@ -85,6 +85,29 @@ export class SalesdocClient {
     return res;
   }
 
+  /**
+   * Reads a GET method page by page. Stops after an empty page or once
+   * `page * limit` reaches the reported total.
+   */
+  async *pages<Row = Record<string, unknown>>(
+    method: string,
+    resultKey: string,
+    params: SalesdocParams = {},
+    filialId?: string,
+  ): AsyncGenerator<{ page: number; rows: Row[]; total: number }> {
+    const limit = params.limit ?? 1000;
+    for (let page = params.page ?? 1; ; page++) {
+      const res = await this.call<Record<string, Row[] | undefined>>(method, {
+        params: { ...params, limit, page },
+        filialId,
+      });
+      const rows = res.result[resultKey] ?? [];
+      const total = res.pagination?.total ?? 0;
+      yield { page, rows, total };
+      if (rows.length === 0 || page * limit >= total) return;
+    }
+  }
+
   /** Reads every page of a GET method and returns `result[resultKey]` rows. */
   async fetchAll<Row = Record<string, unknown>>(
     method: string,
@@ -92,18 +115,11 @@ export class SalesdocClient {
     params: SalesdocParams = {},
     filialId?: string,
   ): Promise<Row[]> {
-    const limit = params.limit ?? 1000;
     const rows: Row[] = [];
-    for (let page = params.page ?? 1; ; page++) {
-      const res = await this.call<Record<string, Row[] | undefined>>(method, {
-        params: { ...params, limit, page },
-        filialId,
-      });
-      const batch = res.result[resultKey] ?? [];
-      rows.push(...batch);
-      const total = res.pagination?.total ?? rows.length;
-      if (batch.length === 0 || page * limit >= total) return rows;
+    for await (const p of this.pages<Row>(method, resultKey, params, filialId)) {
+      rows.push(...p.rows);
     }
+    return rows;
   }
 
   /** Logs in (if needed) and returns the Salesdoc user id; for status checks. */

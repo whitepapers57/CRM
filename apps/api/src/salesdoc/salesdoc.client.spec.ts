@@ -141,4 +141,56 @@ describe('SalesdocClient', () => {
       2,
     ]);
   });
+
+  it('pages() yields each page and starts at params.page', async () => {
+    fetchMock
+      .mockResolvedValueOnce(loginOk('t1'))
+      .mockResolvedValueOnce(
+        json({
+          status: true,
+          result: { order: [{ id: 3 }, { id: 4 }] },
+          pagination: { limit: 2, total: 5, page: 2 },
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
+          status: true,
+          result: { order: [{ id: 5 }] },
+          pagination: { limit: 2, total: 5, page: 3 },
+        }),
+      );
+
+    const seen: Array<{ page: number; ids: number[] }> = [];
+    for await (const p of client.pages<{ id: number }>('getOrder', 'order', {
+      limit: 2,
+      page: 2,
+    })) {
+      seen.push({ page: p.page, ids: p.rows.map((r) => r.id) });
+    }
+
+    expect(seen).toEqual([
+      { page: 2, ids: [3, 4] },
+      { page: 3, ids: [5] },
+    ]);
+  });
+
+  it('pages() stops on an empty page even when total says more', async () => {
+    fetchMock
+      .mockResolvedValueOnce(loginOk('t1'))
+      .mockResolvedValueOnce(
+        json({
+          status: true,
+          result: { order: [] },
+          pagination: { limit: 2, total: 99, page: 1 },
+        }),
+      );
+
+    const pages = [];
+    for await (const p of client.pages('getOrder', 'order', { limit: 2 })) {
+      pages.push(p);
+    }
+
+    expect(pages).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
