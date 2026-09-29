@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
 import { SalesdocModule } from './salesdoc/salesdoc.module.js';
+import { SettlementsModule } from './settlements/settlements.module.js';
 import { SyncModule } from './sync/sync.module.js';
 
 @Module({
@@ -13,6 +14,7 @@ import { SyncModule } from './sync/sync.module.js';
     SalesdocModule,
     ScheduleModule.forRoot(),
     SyncModule,
+    SettlementsModule,
   ],
   controllers: [HealthController],
 })

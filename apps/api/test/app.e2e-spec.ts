@@ -36,6 +36,13 @@ describe('API (e2e)', () => {
     expect(res.body.resources.map((r: { resource: string }) => r.resource)).toContain('payments');
   });
 
+  it('GET /reconciliation/summary rejects a reversed period', () => {
+    return request(app.getHttpServer())
+      .get('/reconciliation/summary?from=2026-09-30&to=2026-09-01')
+      .expect(400)
+      .expect((res) => expect(res.body.message).toBe('from must not be after to'));
+  });
+
   afterAll(async () => {
     await app.close();
   });
