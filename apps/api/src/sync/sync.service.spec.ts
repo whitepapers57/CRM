@@ -108,6 +108,14 @@ describe('SyncService', () => {
     expect(report).toMatchObject({ results: [{ status: 'succeeded', records: 1 }] });
   }, 20_000);
 
+  it('refuses to prune a table when Salesdoc suddenly returns nothing', async () => {
+    // Review finding: an empty page 1 counted as a completed pass and pruned everything.
+    await new SyncService(db, fakeClient({ 1: [order('a', 3), order('b', 3)] }), orders).run('full');
+    const report = await new SyncService(db, fakeClient({ 1: [] }), orders).run('full');
+    expect(report).toMatchObject({ results: [{ status: 'failed', error: expect.stringContaining('no rows') }] });
+    expect(await db.order.count()).toBe(2);
+  });
+
   it('refuses to start a second run while one is going', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));

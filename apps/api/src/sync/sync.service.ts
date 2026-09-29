@@ -140,6 +140,19 @@ export class SyncService {
       }, TX);
     }
 
+    const { seen, stale } = await this.prisma.$transaction((tx) => def.seen(tx, startedAt));
+    if (seen === 0 && stale > 0) {
+      // A sudden empty answer is far likelier a Salesdoc glitch than a wiped
+      // account; pruning would erase the mirror (and every balance anchor).
+      await this.prisma.syncCursor.update({
+        where: { resource: def.name },
+        data: { fullStartedAt: null, nextPage: null },
+      });
+      throw new Error(
+        `Salesdoc returned no rows for ${def.method}; refusing to prune ${stale} stored rows`,
+      );
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await def.prune(tx, startedAt);
       await tx.syncCursor.update({

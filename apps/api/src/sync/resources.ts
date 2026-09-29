@@ -30,12 +30,15 @@ export interface ResourceDef {
   dated?: (from: string, to: string) => Record<string, unknown>;
   save(tx: Tx, rows: Raw[], seenAt: Date): Promise<number>;
   prune(tx: Tx, before: Date): Promise<number>;
+  /** Rows seen since `since` (this pass) and rows a prune at `since` would delete. */
+  seen(tx: Tx, since: Date): Promise<{ seen: number; stale: number }>;
 }
 
 /** The subset of a Prisma model delegate the savers use. */
 interface FlatModel {
   deleteMany(args: { where: Record<string, unknown> }): Promise<{ count: number }>;
   createMany(args: { data: Array<Record<string, unknown>> }): Promise<{ count: number }>;
+  count(args: { where: Record<string, unknown> }): Promise<number>;
 }
 
 /** Last copy of each sdId wins: Salesdoc can repeat a record while data shifts. */
@@ -70,6 +73,11 @@ async function replaceWithLines<L>(
 
 const pruneModel = (model: FlatModel, before: Date) =>
   model.deleteMany({ where: { seenAt: { lt: before } } }).then((r) => r.count);
+
+const seenModel = async (model: FlatModel, since: Date) => ({
+  seen: await model.count({ where: { seenAt: { gte: since } } }),
+  stale: await model.count({ where: { seenAt: { lt: since } } }),
+});
 
 const m = (tx: Tx) => ({
   paymentType: tx.paymentType as unknown as FlatModel,
@@ -108,6 +116,7 @@ function flat(
     mode: 'replace',
     save: (tx, rows, seenAt) => replaceFlat(m(tx)[model], rows.map((r) => map(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx)[model], before),
+    seen: (tx, since) => seenModel(m(tx)[model], since),
   };
 }
 
@@ -133,6 +142,7 @@ export const RESOURCES: ResourceDef[] = [
     save: (tx, rows, seenAt) =>
       replaceFlat(m(tx).stockLevel, rows.flatMap((r) => mapStock(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).stockLevel, before),
+    seen: (tx, since) => seenModel(m(tx).stockLevel, since),
   },
   {
     name: 'outlets',
@@ -142,6 +152,7 @@ export const RESOURCES: ResourceDef[] = [
     updatedBetween: updatePeriod('update'),
     save: (tx, rows, seenAt) => replaceFlat(m(tx).outlet, rows.map((r) => mapOutlet(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).outlet, before),
+    seen: (tx, since) => seenModel(m(tx).outlet, since),
   },
   {
     name: 'purchases',
@@ -153,6 +164,7 @@ export const RESOURCES: ResourceDef[] = [
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).purchase, m(tx).purchaseLine, 'purchaseSdId', rows.map((r) => mapPurchase(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).purchase, before),
+    seen: (tx, since) => seenModel(m(tx).purchase, since),
   },
   {
     name: 'orders',
@@ -165,6 +177,7 @@ export const RESOURCES: ResourceDef[] = [
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).order, m(tx).orderLine, 'orderSdId', rows.map((r) => mapOrder(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).order, before),
+    seen: (tx, since) => seenModel(m(tx).order, since),
   },
   {
     name: 'returns',
@@ -177,6 +190,7 @@ export const RESOURCES: ResourceDef[] = [
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).ret, m(tx).returnLine, 'returnSdId', rows.map((r) => mapReturn(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).ret, before),
+    seen: (tx, since) => seenModel(m(tx).ret, since),
   },
   {
     name: 'payments',
@@ -189,6 +203,7 @@ export const RESOURCES: ResourceDef[] = [
     save: (tx, rows, seenAt) =>
       replaceWithLines(m(tx).payment, m(tx).allocation, 'paymentSdId', rows.map((r) => mapPayment(r, seenAt))),
     prune: (tx, before) => pruneModel(m(tx).payment, before),
+    seen: (tx, since) => seenModel(m(tx).payment, since),
   },
   // Last, so the anchor is read after the movements it anchors (spec §4.1).
   flat('balances', 'getBalance', 'balance', 'outletBalance', mapBalance),
