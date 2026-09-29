@@ -21,6 +21,9 @@ anything back to Salesdoc, a comparison with Salesdoc's own `getBalance`
 
 ## 2. Architecture
 
+**Database:** PostgreSQL on Supabase (free plan: 500 MB database; the window
+keeps the mirror far below it). The API connects to it directly.
+
 npm-workspaces monorepo, already scaffolded:
 
 | App | Stack | Role |
@@ -89,9 +92,11 @@ expeditor, warehouse, payment type.
 
 ## 4. Reconciliation rules
 
-Balance = goods side − cash side. Balances are cumulative from the start of
-history; a period view shows opening balance, movements in the period, and
-closing balance. Items are dated by document date: orders `dateDocument`,
+Balance = goods side − cash side. **Only a window is stored: the current
+month and the two before it** (on 29 Sep 2026 the window starts 1 Jul 2026;
+it moves forward on the 1st of each month). A period view shows opening
+balance, movements in the period, and closing balance; periods before the
+window start cannot be shown (400). Items are dated by document date: orders `dateDocument`,
 returns their document date, payments `paymentDate`, receipts their date,
 cash entries `date`. Cancelled cash entries count for nothing.
 
@@ -102,10 +107,18 @@ cash entries `date`. Cancelled cash entries count for nothing.
 - Cash: Σ Salesdoc payments + Σ `outlet_overpayment` entries. An overpayment
   is entered in the app only when it is **not** already a Salesdoc payment.
 - Positive = the outlet owes us; negative = prepaid.
+- **Anchor (decided 29 Sep 2026):** history before the window is not stored,
+  so balances are anchored on Salesdoc's current balance per outlet
+  (`getBalance`, stored each sync as a snapshot; debt = −balance; outlets
+  without a row count as 0). Balance at any moment *t* inside the window =
+  snapshot debt − Σ movements dated on or after *t*. Consequently today's
+  closing balance always equals Salesdoc's own figure.
 
 ### 4.2 Supplier — what we owe
 
-- Goods: Σ purchase line amounts.
+- Goods: Σ purchase line amounts within the window.
+- Opening at the window start: 0 until the owner enters the supplier balance
+  owed at that date (arrives with the cash-entries plan).
 - Cash: Σ `supplier_payment` − Σ `supplier_refund`.
 - Positive = we owe the supplier. Supplier returns are not exposed by the API
   (`getSupplierReturn` → 402); goods sent back appear only as a refund.
@@ -134,12 +147,12 @@ receivables = payables) is deferred until the diagram's data is built and
 visible. Nothing in v1 may block it: keep purchase prices per line (cost of
 goods) and every cash movement, so either definition can be computed later.
 
-### 4.7 Known risk
+### 4.7 Known risk (resolved by the anchor)
 
-If Salesdoc was seeded with opening balances (`setBalance`) instead of
-building them from orders, computed outlet balances will differ from
-Salesdoc's for those outlets. After the first full sync, compare once against
-`getBalance` and report the differences; not a permanent feature.
+Salesdoc may have opening balances or write-offs that our movement rules do
+not see. With the §4.1 anchor these land in the opening balance at the window
+start, so current balances match Salesdoc exactly; only the split of a
+period's opening balance can differ from a from-scratch calculation.
 
 ## 5. Sync
 
@@ -147,9 +160,13 @@ Salesdoc's for those outlets. After the first full sync, compare once against
 - One method at a time, reference data first (warehouses, products,
   payment types, cashboxes, supplier, agents, expeditors, outlets), then
   purchases, orders, returns, payments, stock.
-- **First run** loads full history in the background; each page is upserted
-  and the page number stored in `SyncCursor`, so a failure resumes where it
-  stopped. Progress is shown in the sync panel.
+- **Full passes** load only documents dated inside the window (orders,
+  returns, payments, receipts, filtered by document date); outlets and the
+  reference lists are loaded whole. Each page is upserted and the page number
+  stored in `SyncCursor`, so a failure resumes where it stopped. The nightly
+  full pass deletes whatever it no longer sees, which removes documents that
+  left the window.
+- **Outlet balances** (`getBalance`) are re-read in full on every run.
 - **Later runs** fetch only records changed since the cursor (the method's
   update-date filter, with a small overlap), upserting by `sdId`.
 - Failures (Salesdoc down, bad credentials, 429) are recorded in `SyncRun`;
