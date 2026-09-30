@@ -13,7 +13,7 @@ export function Sidebar({ title, items, footer }: { title: string; items: NavIte
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
   return (
-    <aside className="flex shrink-0 flex-col gap-4 border-b bg-muted/30 p-4 md:min-h-screen md:w-56 md:border-r md:border-b-0">
+    <aside className="flex shrink-0 flex-col gap-4 border-b bg-muted/30 p-4 md:sticky md:top-0 md:h-screen md:w-56 md:overflow-y-auto md:border-r md:border-b-0">
       <span className="font-semibold">{title}</span>
       <nav className="flex flex-wrap gap-1 md:flex-col">
         {items.map((i) => (
