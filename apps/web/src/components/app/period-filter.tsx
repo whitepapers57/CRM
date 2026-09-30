@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Field } from "./field";
+import type { Locale } from "@/i18n/messages";
+import { DateField } from "./date-field";
 
 export interface PeriodLabels {
   from: string;
@@ -15,7 +16,7 @@ export interface PeriodLabels {
 }
 
 /** Two dates, validated in place, written to ?from&to (page resets to 1). */
-export function PeriodFilter({ from, to, min, labels }: { from: string; to: string; min?: string; labels: PeriodLabels }) {
+export function PeriodFilter({ from, to, min, locale, labels }: { from: string; to: string; min?: string; locale: Locale; labels: PeriodLabels }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -41,25 +42,25 @@ export function PeriodFilter({ from, to, min, labels }: { from: string; to: stri
 
   return (
     <form onSubmit={apply} noValidate className="flex flex-wrap items-start gap-3">
-      <Field
-        type="date"
+      <DateField
         label={labels.from}
-        min={min}
         value={values.from}
+        min={min}
         error={errors.from}
-        onChange={(e) => {
-          setValues((v) => ({ ...v, from: e.target.value }));
+        locale={locale}
+        onChange={(day) => {
+          setValues((v) => ({ ...v, from: day }));
           setErrors((er) => ({ ...er, from: undefined }));
         }}
       />
-      <Field
-        type="date"
+      <DateField
         label={labels.to}
-        min={min}
         value={values.to}
+        min={min}
         error={errors.to}
-        onChange={(e) => {
-          setValues((v) => ({ ...v, to: e.target.value }));
+        locale={locale}
+        onChange={(day) => {
+          setValues((v) => ({ ...v, to: day }));
           setErrors((er) => ({ ...er, to: undefined }));
         }}
       />
