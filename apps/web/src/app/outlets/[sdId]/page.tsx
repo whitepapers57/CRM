@@ -1,5 +1,6 @@
 import { ApiError } from "@/components/app/api-error";
 import { PageHeader } from "@/components/app/page-header";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { PagePeriod } from "@/components/app/page-period";
 import { StatementTable } from "@/components/app/statement-table";
 import { getT } from "@/i18n/server";
@@ -12,14 +13,14 @@ export default async function OutletStatementPage({ params, searchParams }: Page
   const from = typeof sp.from === "string" ? sp.from : undefined;
   const to = typeof sp.to === "string" ? sp.to : undefined;
   const res = await apiGet<OutletStatement>(`/outlets/${encodeURIComponent(sdId)}/statement${qs({ from, to })}`);
-  if (!res.ok) return <><PageHeader title={t("outlets.statement")}><PagePeriod from={from} to={to} /></PageHeader><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
+  if (!res.ok) return <><StickyToolbar><PageHeader title={t("outlets.statement")}><PagePeriod from={from} to={to} /></PageHeader></StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const s = res.data;
 
   return (
     <>
-      <PageHeader title={s.outlet.name} subtitle={[t("outlets.statement"), s.outlet.firmName, s.outlet.inn && `${t("outlets.inn")} ${s.outlet.inn}`].filter(Boolean).join(" · ")}>
+      <StickyToolbar><PageHeader title={s.outlet.name} subtitle={[t("outlets.statement"), s.outlet.firmName, s.outlet.inn && `${t("outlets.inn")} ${s.outlet.inn}`].filter(Boolean).join(" · ")}>
         <PagePeriod from={from} to={to} />
-      </PageHeader>
+      </PageHeader></StickyToolbar>
       <StatementTable
         opening={s.opening}
         closing={s.closing}

@@ -1,5 +1,6 @@
 import { ApiError } from "@/components/app/api-error";
 import { PageHeader } from "@/components/app/page-header";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { PagePeriod } from "@/components/app/page-period";
 import { StatementTable } from "@/components/app/statement-table";
 import { Text } from "@/components/app/text";
@@ -12,13 +13,13 @@ export default async function SupplierPage({ searchParams }: PageProps<"/supplie
   const from = typeof sp.from === "string" ? sp.from : undefined;
   const to = typeof sp.to === "string" ? sp.to : undefined;
   const res = await apiGet<SupplierStatement>(`/supplier/statement${qs({ from, to })}`);
-  if (!res.ok) return <><PageHeader title={t("supplier.title")}><PagePeriod from={from} to={to} /></PageHeader><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
+  if (!res.ok) return <><StickyToolbar><PageHeader title={t("supplier.title")}><PagePeriod from={from} to={to} /></PageHeader></StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
 
   return (
     <>
-      <PageHeader title={t("supplier.title")}>
+      <StickyToolbar><PageHeader title={t("supplier.title")}>
         <PagePeriod from={from} to={to} />
-      </PageHeader>
+      </PageHeader></StickyToolbar>
       <Text variant="caption">{t("recon.cash_pending")}</Text>
       <StatementTable
         opening={res.data.opening}

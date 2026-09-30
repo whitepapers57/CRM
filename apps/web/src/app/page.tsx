@@ -2,6 +2,7 @@ import { ApiError } from "@/components/app/api-error";
 import { DataAsOf } from "@/components/app/data-as-of";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,9 +26,9 @@ export default async function Reconciliation({ searchParams }: PageProps<"/">) {
   const to = typeof sp.to === "string" ? sp.to : undefined;
   const res = await apiGet<Summary>(`/reconciliation/summary${qs({ from, to })}`);
   const header = (
-    <PageHeader title={t("nav.reconciliation")} subtitle={t("app.subtitle")}>
+    <StickyToolbar><PageHeader title={t("nav.reconciliation")} subtitle={t("app.subtitle")}>
       <PagePeriod from={from} to={to} />
-    </PageHeader>
+    </PageHeader></StickyToolbar>
   );
   if (!res.ok) return <>{header}<ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const s = res.data;

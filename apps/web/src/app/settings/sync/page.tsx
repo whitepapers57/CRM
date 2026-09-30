@@ -1,6 +1,7 @@
 import { ApiError } from "@/components/app/api-error";
 import { DataAsOf } from "@/components/app/data-as-of";
 import { PageHeader } from "@/components/app/page-header";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,11 +24,11 @@ export default async function SyncPage() {
 
   return (
     <>
-      <PageHeader title={t("sync.title")}>
+      <StickyToolbar><PageHeader title={t("sync.title")}>
         <SyncButtons
           labels={{ run: t("sync.run"), full: t("sync.run_full"), running: t("sync.running"), alreadyRunning: t("sync.already_running"), started: t("sync.started"), failed: t("errors.unknown") }}
         />
-      </PageHeader>
+      </PageHeader></StickyToolbar>
       <AutoRefresh active={s.running} />
       {s.running && <Text variant="caption" role="status">{t("sync.running")}</Text>}
       <DataAsOf iso={s.dataAsOf} label={(time) => t("data.as_of", { time })} never={t("data.never")} />

@@ -4,7 +4,9 @@ import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
 import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
+import { CheckboxField } from "@/components/app/checkbox-field";
 import { Select } from "@/components/app/select";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,32 +31,40 @@ export default async function Outlets({ searchParams }: PageProps<"/outlets">) {
       <PagePeriod from={query.from} to={query.to} />
     </PageHeader>
   );
-  if (!res.ok) return <>{header}<ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
+  if (!res.ok) return <><StickyToolbar>{header}</StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const pages = Math.max(1, Math.ceil(res.data.total / 50));
   const link = (p: number) => `/outlets${qs({ ...query, page: String(p) })}`;
 
   return (
     <>
+      <StickyToolbar>
       {header}
-
       <form className="flex flex-wrap items-center gap-3" action="/outlets">
         {query.from && <input type="hidden" name="from" value={query.from} />}
         {query.to && <input type="hidden" name="to" value={query.to} />}
         <Input name="search" defaultValue={query.search} placeholder={t("common.search")} aria-label={t("common.search")} className="w-56" />
-        <Select name="agent" defaultValue={query.agent ?? ""} aria-label={t("outlets.agent")}>
-          <option value="">{t("outlets.agent")}: {t("common.all")}</option>
-          {filters.ok && filters.data.agents.map((a) => <option key={a.sdId} value={a.sdId}>{a.name}</option>)}
-        </Select>
-        <Select name="expeditor" defaultValue={query.expeditor ?? ""} aria-label={t("outlets.expeditor")}>
-          <option value="">{t("outlets.expeditor")}: {t("common.all")}</option>
-          {filters.ok && filters.data.expeditors.map((a) => <option key={a.sdId} value={a.sdId}>{a.name}</option>)}
-        </Select>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="nonZero" value="true" defaultChecked={query.nonZero === "true"} />
-          {t("outlets.non_zero")}
-        </label>
+        <Select
+          name="agent"
+          defaultValue={query.agent ?? ""}
+          ariaLabel={t("outlets.agent")}
+          options={[
+            { value: "", label: `${t("outlets.agent")}: ${t("common.all")}` },
+            ...(filters.ok ? filters.data.agents.map((a) => ({ value: a.sdId, label: a.name })) : []),
+          ]}
+        />
+        <Select
+          name="expeditor"
+          defaultValue={query.expeditor ?? ""}
+          ariaLabel={t("outlets.expeditor")}
+          options={[
+            { value: "", label: `${t("outlets.expeditor")}: ${t("common.all")}` },
+            ...(filters.ok ? filters.data.expeditors.map((a) => ({ value: a.sdId, label: a.name })) : []),
+          ]}
+        />
+        <CheckboxField name="nonZero" defaultChecked={query.nonZero === "true"} label={t("outlets.non_zero")} />
         <Button type="submit" variant="secondary" className="active:scale-95">{t("common.apply")}</Button>
       </form>
+      </StickyToolbar>
 
       <div className="overflow-x-auto rounded-lg border">
         <Table>

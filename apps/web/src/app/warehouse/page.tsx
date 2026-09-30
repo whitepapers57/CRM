@@ -4,7 +4,9 @@ import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
 import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
+import { CheckboxField } from "@/components/app/checkbox-field";
 import { Select } from "@/components/app/select";
+import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -37,20 +39,24 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
     if (!res.ok) return <ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} />;
     return (
       <>
+        <StickyToolbar>
         <PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader>
         <form className="flex flex-wrap items-center gap-3" action="/warehouse">
           <input type="hidden" name="tab" value="stock" />
-          <Select name="warehouse" defaultValue={get("warehouse") ?? ""} aria-label={t("warehouse.warehouse")}>
-            <option value="">{t("warehouse.warehouse")}: {t("common.all")}</option>
-            {res.data.warehouses.map((w) => <option key={w.sdId} value={w.sdId}>{w.name}</option>)}
-          </Select>
+          <Select
+            name="warehouse"
+            defaultValue={get("warehouse") ?? ""}
+            ariaLabel={t("warehouse.warehouse")}
+            options={[
+              { value: "", label: `${t("warehouse.warehouse")}: ${t("common.all")}` },
+              ...res.data.warehouses.map((w) => ({ value: w.sdId, label: w.name })),
+            ]}
+          />
           <Input name="search" defaultValue={get("search")} placeholder={t("common.search")} aria-label={t("common.search")} className="w-56" />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="includeZero" value="true" defaultChecked={get("includeZero") === "true"} />
-            {t("warehouse.include_zero")}
-          </label>
+          <CheckboxField name="includeZero" defaultChecked={get("includeZero") === "true"} label={t("warehouse.include_zero")} />
           <Button type="submit" variant="secondary" className="active:scale-95">{t("common.apply")}</Button>
         </form>
+        </StickyToolbar>
         <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
@@ -81,11 +87,13 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
   const from = get("from");
   const to = get("to");
   const res = await apiGet<PurchaseList>(`/warehouse/purchases${qs({ from, to })}`);
-  if (!res.ok) return <><PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader><PagePeriod from={from} to={to} /><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
+  if (!res.ok) return <><StickyToolbar><PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader><PagePeriod from={from} to={to} /></StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   return (
     <>
-      <PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader>
-      <PagePeriod from={from} to={to} />
+      <StickyToolbar>
+        <PageHeader title={t("nav.warehouse")}>{tabs}</PageHeader>
+        <PagePeriod from={from} to={to} />
+      </StickyToolbar>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
