@@ -92,10 +92,10 @@ expeditor, warehouse, payment type.
 
 ## 4. Reconciliation rules
 
-Balance = goods side − cash side. **Only a window is stored: the current
-month** (owner's decision 1 Oct 2026; it was three months until then). On
-1 Oct 2026 the window starts 1 Oct 2026; it moves forward on the 1st of each
-month. A period view shows opening
+Balance = goods side − cash side. **Data is stored from 1 Sep 2026 onwards
+and never trimmed** (owner's decision 1 Oct 2026; earlier the same day it was
+the current month only, before that three months). Pages default to the
+current month. A period view shows opening
 balance, movements in the period, and closing balance; periods before the
 window start cannot be shown (400). Items are dated by document date: orders `dateDocument`,
 returns their document date, payments `paymentDate`, receipts their date,

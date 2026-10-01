@@ -27,8 +27,8 @@ npm run dev:web             # http://localhost:3000
 PostgreSQL on **Supabase** (project `distribution-finance`, eu-central-1, free
 plan). `DATABASE_URL` in `apps/api/.env` uses the **session pooler**
 (`aws-1-eu-central-1.pooler.supabase.com:5432`); the direct host is IPv6-only.
-Only the current month is mirrored (from the 1st, plus a 7-day sync
-margin; ~23 MB of the 500 MB free quota). Tests use a local database (`DATABASE_URL_TEST`).
+Data is mirrored from 1 Sep 2026 onwards and kept (plus a 7-day sync
+margin before it; roughly 15 MB per month of the 500 MB free quota). Tests use a local database (`DATABASE_URL_TEST`).
 
 ## Endpoints
 

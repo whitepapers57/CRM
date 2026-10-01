@@ -8,7 +8,7 @@ export async function PagePeriod({ from, to }: { from?: string; to?: string }) {
   const t = await getT();
   const locale = await getLocale();
   const today = tashkentToday();
-  const min = windowStartFor(today);
+  const min = windowStartFor();
   return (
     <PeriodFilter
       from={from ?? `${today.slice(0, 7)}-01`}
