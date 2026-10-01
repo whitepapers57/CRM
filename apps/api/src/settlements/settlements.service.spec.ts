@@ -130,4 +130,37 @@ describe('SettlementsService', () => {
     expect(s.supplier).toEqual({ received: '700.00', paid: '0.00', owed: '700.00' });
     expect(s.windowStart).toBe('2026-09-01');
   });
+  it('lists suppliers with what we received and what we owe, 1C sign', async () => {
+    await db.supplier.createMany({
+      data: [
+        { sdId: '1', name: 'Основной поставщик', active: true, raw: {}, seenAt },
+        { sdId: '9', name: 'AQUA', active: true, raw: {}, seenAt },
+      ],
+    });
+    for (const [sdId, day, total, sup] of [
+      ['margin', '2026-08-28', 999, '1'],
+      ['a', '2026-09-02', 1000, '1'],
+      ['b', '2026-09-10', 500, '1'],
+      ['x', '2026-09-11', 70, 'ghost'],
+    ] as const) {
+      await db.purchase.create({ data: { sdId, date: new Date(`${day}T09:00:00Z`), total, supplierSdId: sup, raw: {}, seenAt } });
+    }
+
+    const { rows } = await svc.suppliers(parsePeriod('2026-09-05', '2026-09-30', '2026-09-29'));
+    // Russian collation: Cyrillic names before Latin ones.
+    expect(rows).toEqual([
+      { sdId: '1', name: 'Основной поставщик', received: '500.00', paid: '0.00', debt: '-1500.00' },
+      { sdId: '9', name: 'AQUA', received: '0.00', paid: '0.00', debt: '0.00' },
+      { sdId: 'ghost', name: 'ghost', received: '70.00', paid: '0.00', debt: '-70.00' },
+    ]);
+  });
+
+  it('scopes the supplier statement to one supplier', async () => {
+    for (const [sdId, day, total, sup] of [['a', '2026-09-02', 1000, '1'], ['b', '2026-09-10', 500, '1'], ['x', '2026-09-11', 70, '2']] as const) {
+      await db.purchase.create({ data: { sdId, date: new Date(`${day}T09:00:00Z`), total, supplierSdId: sup, raw: {}, seenAt } });
+    }
+    const s = await svc.supplierStatement(parsePeriod('2026-09-05', '2026-09-30', '2026-09-29'), '1');
+    expect(s).toMatchObject({ opening: '1000.00', received: '500.00', closing: '1500.00' });
+    expect(s.rows.map((r) => r.sdId)).toEqual(['b']);
+  });
 });

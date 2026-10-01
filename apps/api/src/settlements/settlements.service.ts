@@ -146,12 +146,16 @@ export class SettlementsService {
   }
 
   /** §4.2 goods side; supplier payments arrive with the cash-entries plan. */
-  async supplierStatement(p: Period) {
+  async supplierStatement(p: Period, supplierSdId?: string) {
+    const only = supplierSdId ? Prisma.sql`AND "supplierSdId" = ${supplierSdId}` : Prisma.empty;
     const [{ opening }] = await this.prisma.$queryRaw<Array<{ opening: Dec | null }>>`
       SELECT SUM(total) AS opening FROM "Purchase"
-      WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp`;
+      WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp ${only}`;
     const purchases = await this.prisma.purchase.findMany({
-      where: { date: { gte: p.from, lt: p.toExclusive } },
+      where: {
+        date: { gte: p.from, lt: p.toExclusive },
+        ...(supplierSdId ? { supplierSdId } : {}),
+      },
       orderBy: [{ date: 'asc' }, { sdId: 'asc' }],
     });
     const warehouses = new Map(
@@ -172,6 +176,40 @@ export class SettlementsService {
       };
     });
     return { opening: s(opening), received: s(received), paid: s(0), closing: s(balance), rows };
+  }
+
+  /**
+   * One row per supplier (Salesdoc's list plus any supplier id found on a
+   * receipt). debt follows 1C «Долг (+ нам, − мы)»: what we owe is negative.
+   */
+  async suppliers(p: Period) {
+    const [listed, sums] = await Promise.all([
+      this.prisma.supplier.findMany({ select: { sdId: true, name: true } }),
+      this.prisma.$queryRaw<Array<{ supplier: string; received: Dec; balance: Dec }>>`
+        SELECT "supplierSdId" AS supplier,
+          SUM(CASE WHEN date >= ${p.fromDay}::timestamp THEN total ELSE 0 END) AS received,
+          SUM(total) AS balance
+        FROM "Purchase"
+        WHERE "supplierSdId" IS NOT NULL
+          AND date >= ${p.windowStart}::timestamp AND date < ${p.toExclusiveDay}::timestamp
+        GROUP BY "supplierSdId"`,
+    ]);
+    const names = new Map(listed.map((x) => [x.sdId, x.name]));
+    const bySupplier = new Map(sums.map((r) => [r.supplier, r]));
+    const ids = new Set([...names.keys(), ...bySupplier.keys()]);
+    const rows = [...ids].map((sdId) => {
+      const r = bySupplier.get(sdId);
+      const balance = new Prisma.Decimal(r?.balance ?? 0);
+      return {
+        sdId,
+        name: names.get(sdId) ?? sdId,
+        received: s(r?.received),
+        paid: s(0),
+        debt: balance.isZero() ? s(0) : s(balance.neg()),
+      };
+    });
+    rows.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    return { rows };
   }
 
   async summary(p: Period) {

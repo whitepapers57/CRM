@@ -40,8 +40,13 @@ export class SettlementsController {
     return this.settlements.outletStatement(sdId, parsePeriod(from, to));
   }
 
+  @Get('suppliers')
+  suppliers(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.settlements.suppliers(parsePeriod(from, to));
+  }
+
   @Get('supplier/statement')
-  supplier(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.settlements.supplierStatement(parsePeriod(from, to));
+  supplier(@Query('from') from?: string, @Query('to') to?: string, @Query('supplier') supplier?: string) {
+    return this.settlements.supplierStatement(parsePeriod(from, to), supplier || undefined);
   }
 }
