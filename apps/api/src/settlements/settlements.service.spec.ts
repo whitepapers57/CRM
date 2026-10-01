@@ -163,4 +163,18 @@ describe('SettlementsService', () => {
     expect(s).toMatchObject({ opening: '1000.00', received: '500.00', closing: '1500.00' });
     expect(s.rows.map((r) => r.sdId)).toEqual(['b']);
   });
+
+  it('puts receipts without a supplier on their own row and statement', async () => {
+    // Review finding: they counted on the home page but appeared on no supplier row.
+    await db.supplier.create({ data: { sdId: '1', name: 'Основной поставщик', active: true, raw: {}, seenAt } });
+    await db.purchase.create({ data: { sdId: 'a', date: new Date('2026-09-10T09:00:00Z'), total: 500, supplierSdId: '1', raw: {}, seenAt } });
+    await db.purchase.create({ data: { sdId: 'n', date: new Date('2026-09-11T09:00:00Z'), total: 30, supplierSdId: null, raw: {}, seenAt } });
+    const p = parsePeriod('2026-09-05', '2026-09-30', '2026-09-29');
+
+    const { rows } = await svc.suppliers(p);
+    expect(rows.find((r) => r.sdId === '-')).toEqual({ sdId: '-', name: '-', received: '30.00', paid: '0.00', debt: '-30.00' });
+    const st = await svc.supplierStatement(p, '-');
+    expect(st.rows.map((r) => r.sdId)).toEqual(['n']);
+    expect(st.closing).toBe('30.00');
+  });
 });

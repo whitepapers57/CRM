@@ -39,6 +39,9 @@ const MOVEMENTS = Prisma.sql`
   SELECT "outletSdId", "paymentDate", 'payment', "sdId", -amount
     FROM "Payment" WHERE "transactionType" = 3 AND "outletSdId" IS NOT NULL`;
 
+/** Supplier key for receipts that have none, so the supplier rows add up to all receipts. */
+export const NO_SUPPLIER = '-';
+
 @Injectable()
 export class SettlementsService {
   constructor(
@@ -147,14 +150,20 @@ export class SettlementsService {
 
   /** §4.2 goods side; supplier payments arrive with the cash-entries plan. */
   async supplierStatement(p: Period, supplierSdId?: string) {
-    const only = supplierSdId ? Prisma.sql`AND "supplierSdId" = ${supplierSdId}` : Prisma.empty;
+    // NO_SUPPLIER selects receipts Salesdoc sent without a supplier.
+    const only =
+      supplierSdId === NO_SUPPLIER
+        ? Prisma.sql`AND "supplierSdId" IS NULL`
+        : supplierSdId
+          ? Prisma.sql`AND "supplierSdId" = ${supplierSdId}`
+          : Prisma.empty;
     const [{ opening }] = await this.prisma.$queryRaw<Array<{ opening: Dec | null }>>`
       SELECT SUM(total) AS opening FROM "Purchase"
       WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp ${only}`;
     const purchases = await this.prisma.purchase.findMany({
       where: {
         date: { gte: p.from, lt: p.toExclusive },
-        ...(supplierSdId ? { supplierSdId } : {}),
+        ...(supplierSdId ? { supplierSdId: supplierSdId === NO_SUPPLIER ? null : supplierSdId } : {}),
       },
       orderBy: [{ date: 'asc' }, { sdId: 'asc' }],
     });
@@ -186,13 +195,12 @@ export class SettlementsService {
     const [listed, sums] = await Promise.all([
       this.prisma.supplier.findMany({ select: { sdId: true, name: true } }),
       this.prisma.$queryRaw<Array<{ supplier: string; received: Dec; balance: Dec }>>`
-        SELECT "supplierSdId" AS supplier,
+        SELECT COALESCE("supplierSdId", ${NO_SUPPLIER}) AS supplier,
           SUM(CASE WHEN date >= ${p.fromDay}::timestamp THEN total ELSE 0 END) AS received,
           SUM(total) AS balance
         FROM "Purchase"
-        WHERE "supplierSdId" IS NOT NULL
-          AND date >= ${p.windowStart}::timestamp AND date < ${p.toExclusiveDay}::timestamp
-        GROUP BY "supplierSdId"`,
+        WHERE date >= ${p.windowStart}::timestamp AND date < ${p.toExclusiveDay}::timestamp
+        GROUP BY 1`,
     ]);
     const names = new Map(listed.map((x) => [x.sdId, x.name]));
     const bySupplier = new Map(sums.map((r) => [r.supplier, r]));

@@ -50,7 +50,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
               <TableRow key={r.sdId} className="relative hover:bg-muted/50">
                 <TableCell className="font-medium">
                   <Link href={`/zakupki/postavshiki/${encodeURIComponent(r.sdId)}${qs({ from, to })}`} className="after:absolute after:inset-0">
-                    {r.name}
+                    {r.sdId === "-" ? t("zakupki.no_supplier") : r.name}
                   </Link>
                 </TableCell>
                 <TableCell className="text-right"><Money value={r.received} /></TableCell>

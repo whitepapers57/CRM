@@ -6,6 +6,7 @@ import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type SupplierList, type SupplierStatement } from "@/lib/api";
+import { toDebtSign } from "@/lib/debt-sign";
 
 export default async function SupplierStatementPage({ params, searchParams }: PageProps<"/zakupki/postavshiki/[sdId]">) {
   const t = await getT();
@@ -17,7 +18,7 @@ export default async function SupplierStatementPage({ params, searchParams }: Pa
     apiGet<SupplierStatement>(`/supplier/statement${qs({ from, to, supplier: sdId })}`),
     apiGet<SupplierList>(`/suppliers${qs({ from, to })}`),
   ]);
-  const name = (list.ok && list.data.rows.find((r) => r.sdId === sdId)?.name) || sdId;
+  const name = sdId === "-" ? t("zakupki.no_supplier") : (list.ok && list.data.rows.find((r) => r.sdId === sdId)?.name) || sdId;
   const header = (
     <PageHeader title={name} subtitle={t("outlets.statement")}>
       <PagePeriod from={from} to={to} />
@@ -31,17 +32,19 @@ export default async function SupplierStatementPage({ params, searchParams }: Pa
       </>
     );
   }
+  // Same sign as the Поставщики list: what we owe is negative (1C «Долг (+ нам, − мы)»).
+  const st = toDebtSign(res.data);
   return (
     <>
       <StickyToolbar>{header}</StickyToolbar>
       <Text variant="caption">{t("recon.cash_pending")}</Text>
       <StatementTable
-        opening={res.data.opening}
-        closing={res.data.closing}
-        rows={res.data.rows}
+        opening={st.opening}
+        closing={st.closing}
+        rows={st.rows}
         labels={{
           date: t("statement.date"), document: t("statement.document"), amount: t("statement.amount"),
-          balance: t("statement.balance"), opening: t("outlets.opening"), closing: t("outlets.closing"), empty: t("common.empty"),
+          balance: t("zakupki.debt"), opening: t("outlets.opening"), closing: t("outlets.closing"), empty: t("common.empty"),
           kind: { order: t("statement.kind.order"), return: t("statement.kind.return"), payment: t("statement.kind.payment"), purchase: t("statement.kind.purchase") },
         }}
       />
