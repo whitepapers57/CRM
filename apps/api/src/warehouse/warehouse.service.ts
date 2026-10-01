@@ -43,20 +43,34 @@ export class WarehouseService {
     return { warehouses: n.warehouses, rows };
   }
 
-  async purchases(p: Period) {
+  async purchases(p: Period, q: { supplier?: string; warehouse?: string; search?: string } = {}) {
     const n = await this.names();
+    const suppliers = await this.prisma.supplier.findMany({
+      orderBy: { name: 'asc' },
+      select: { sdId: true, name: true },
+    });
+    // Escape LIKE wildcards so a typed % or _ matches itself.
+    const search = q.search?.replace(/[\\%_]/g, (c) => `\\${c}`);
     const list = await this.prisma.purchase.findMany({
-      where: { date: { gte: p.from, lt: p.toExclusive } },
+      where: {
+        date: { gte: p.from, lt: p.toExclusive },
+        ...(q.supplier ? { supplierSdId: q.supplier } : {}),
+        ...(q.warehouse ? { warehouseSdId: q.warehouse } : {}),
+        ...(search ? { sdId: { contains: search, mode: 'insensitive' } } : {}),
+      },
       orderBy: [{ date: 'desc' }, { sdId: 'desc' }],
       include: { _count: { select: { lines: true } } },
     });
     const total = list.reduce((sum, x) => sum.plus(x.total), new Prisma.Decimal(0));
     return {
       total: s2(total),
+      filters: { suppliers, warehouses: n.warehouses },
       rows: list.map((x) => ({
         sdId: x.sdId,
         date: x.date.toISOString(),
+        warehouseSdId: x.warehouseSdId,
         warehouseName: x.warehouseSdId ? (n.warehouse.get(x.warehouseSdId) ?? null) : null,
+        supplierSdId: x.supplierSdId,
         supplierName: x.supplierSdId ? (n.supplier.get(x.supplierSdId) ?? null) : null,
         lineCount: x._count.lines,
         total: s2(x.total),

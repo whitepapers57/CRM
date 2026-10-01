@@ -20,8 +20,18 @@ export class WarehouseController {
   }
 
   @Get('purchases')
-  purchases(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.warehouse.purchases(parsePeriod(from, to));
+  purchases(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('supplier') supplier?: string,
+    @Query('warehouse') warehouse?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.warehouse.purchases(parsePeriod(from, to), {
+      supplier: supplier || undefined,
+      warehouse: warehouse || undefined,
+      search: search?.trim() || undefined,
+    });
   }
 
   @Get('purchases/:sdId')
