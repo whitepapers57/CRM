@@ -84,7 +84,21 @@ export interface StockResponse {
 
 export interface PurchaseList {
   total: string;
-  rows: Array<{ sdId: string; date: string; warehouseName: string | null; supplierName: string | null; lineCount: number; total: string }>;
+  filters: { suppliers: Array<{ sdId: string; name: string }>; warehouses: Array<{ sdId: string; name: string }> };
+  rows: Array<{
+    sdId: string;
+    date: string;
+    warehouseSdId: string | null;
+    warehouseName: string | null;
+    supplierSdId: string | null;
+    supplierName: string | null;
+    lineCount: number;
+    total: string;
+  }>;
+}
+
+export interface SupplierList {
+  rows: Array<{ sdId: string; name: string; received: string; paid: string; debt: string }>;
 }
 
 export interface PurchaseDetail {

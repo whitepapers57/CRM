@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleSwitch } from "@/components/app/locale-switch";
-import { Sidebar } from "@/components/app/sidebar";
+import { Sidebar, type NavItem } from "@/components/app/sidebar";
 import { getLocale, getT } from "@/i18n/server";
 import "./globals.css";
 
@@ -16,11 +16,21 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   const t = await getT();
-  const items = [
+  const items: NavItem[] = [
     { href: "/", label: t("nav.reconciliation") },
     { href: "/outlets", label: t("nav.outlets") },
-    { href: "/supplier", label: t("nav.supplier") },
+    {
+      href: "/zakupki/nakladnye",
+      match: "/zakupki",
+      label: t("nav.purchases"),
+      children: [
+        { href: "/zakupki/nakladnye", label: t("nav.receipts") },
+        { href: "/zakupki/postavshiki", label: t("nav.suppliers") },
+      ],
+    },
     { href: "/warehouse", label: t("nav.warehouse") },
+    { href: "/nomenklatura", label: t("nav.nomenclature") },
+    { href: "/otchety", label: t("nav.reports") },
     { href: "/settings/sync", label: t("nav.sync") },
   ];
   return (
