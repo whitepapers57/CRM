@@ -108,11 +108,11 @@ describe('SettlementsService', () => {
 
   it('owes the supplier every receipt while no payments exist yet', async () => {
     await db.warehouse.create({ data: { sdId: 'w1', name: 'Нич склад', active: true, raw: {}, seenAt } });
-    // 'margin' was fetched only because of the 7-day margin before the window start (1 Jul).
-    for (const [sdId, day, total] of [['margin', '2026-06-28', 999], ['a', '2026-08-01', 1000], ['b', '2026-09-03', 500]] as const) {
+    // 'margin' was fetched only because of the 7-day margin before the window start (1 Sep).
+    for (const [sdId, day, total] of [['margin', '2026-08-28', 999], ['a', '2026-09-02', 1000], ['b', '2026-09-03', 500]] as const) {
       await db.purchase.create({ data: { sdId, date: new Date(`${day}T09:00:00Z`), total, warehouseSdId: 'w1', raw: {}, seenAt } });
     }
-    const s = await svc.supplierStatement(sept);
+    const s = await svc.supplierStatement(parsePeriod('2026-09-03', '2026-09-30', '2026-09-29'));
     expect(s).toMatchObject({ opening: '1000.00', received: '500.00', paid: '0.00', closing: '1500.00' });
     expect(s.rows[0]).toMatchObject({ sdId: 'b', warehouseName: 'Нич склад', balance: '1500.00' });
   });
@@ -128,6 +128,6 @@ describe('SettlementsService', () => {
     const s = await svc.summary(sept);
     expect(s.outlets).toEqual({ receivable: '500.00', prepaid: '200.00', delivered: '600.00', returned: '0.00', paid: '300.00' });
     expect(s.supplier).toEqual({ received: '700.00', paid: '0.00', owed: '700.00' });
-    expect(s.windowStart).toBe('2026-07-01');
+    expect(s.windowStart).toBe('2026-09-01');
   });
 });

@@ -21,8 +21,8 @@ anything back to Salesdoc, a comparison with Salesdoc's own `getBalance`
 
 ## 2. Architecture
 
-**Database:** PostgreSQL on Supabase (free plan: 500 MB database; the window
-keeps the mirror far below it). The API connects to it directly.
+**Database:** PostgreSQL on Supabase (free plan: 500 MB database; the one-month
+window keeps the mirror at about 23 MB). The API connects to it directly.
 
 npm-workspaces monorepo, already scaffolded:
 
@@ -93,8 +93,9 @@ expeditor, warehouse, payment type.
 ## 4. Reconciliation rules
 
 Balance = goods side − cash side. **Only a window is stored: the current
-month and the two before it** (on 29 Sep 2026 the window starts 1 Jul 2026;
-it moves forward on the 1st of each month). A period view shows opening
+month** (owner's decision 1 Oct 2026; it was three months until then). On
+1 Oct 2026 the window starts 1 Oct 2026; it moves forward on the 1st of each
+month. A period view shows opening
 balance, movements in the period, and closing balance; periods before the
 window start cannot be shown (400). Items are dated by document date: orders `dateDocument`,
 returns their document date, payments `paymentDate`, receipts their date,

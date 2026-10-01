@@ -1,7 +1,7 @@
 import { tashkentDay } from './salesdoc-date.js';
 
 export interface SyncWindow {
-  /** First day kept: the 1st of the month two months back (spec §4). */
+  /** First day kept: the 1st of the current month (spec §4, owner's decision 1 Oct 2026). */
   start: string;
   /**
    * First day fetched: a week earlier, because Salesdoc filters orders by
@@ -18,7 +18,7 @@ const MARGIN_DAYS = 7;
 export function syncWindow(now: Date): SyncWindow {
   const to = tashkentDay(now);
   const [y, m] = to.split('-').map(Number);
-  const first = new Date(Date.UTC(y, m - 1 - 2, 1));
+  const first = new Date(Date.UTC(y, m - 1, 1));
   const start = first.toISOString().slice(0, 10);
   const fetchFrom = new Date(first.getTime() - MARGIN_DAYS * 24 * 60 * 60 * 1000)
     .toISOString()

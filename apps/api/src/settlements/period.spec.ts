@@ -16,9 +16,9 @@ describe('parsePeriod', () => {
   });
 
   it('refuses a start before the stored window', () => {
-    expect(() => parsePeriod('2026-06-30', '2026-09-29', '2026-09-29')).toThrow(
-      'from must not be before 2026-07-01',
+    expect(() => parsePeriod('2026-08-31', '2026-09-29', '2026-09-29')).toThrow(
+      'from must not be before 2026-09-01',
     );
-    expect(parsePeriod('2026-07-01', '2026-09-29', '2026-09-29').windowStart).toBe('2026-07-01');
+    expect(parsePeriod('2026-09-01', '2026-09-29', '2026-09-29').windowStart).toBe('2026-09-01');
   });
 });

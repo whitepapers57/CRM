@@ -67,7 +67,7 @@ describe('SyncService', () => {
     await new SyncService(db, fakeClient({ 1: [] }, calls), orders, () => now).run('full');
     expect(calls[0].params.filter).toEqual({
       status: [1, 2, 3, 4, 5], agent: 'all',
-      period: { date: { from: '2026-06-24', to: '2026-09-29' } },
+      period: { date: { from: '2026-08-25', to: '2026-09-29' } },
     });
   });
 
