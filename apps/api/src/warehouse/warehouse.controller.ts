@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/auth.guard.js';
 import type { AuthUser } from '../auth/auth.service.js';
 import { parsePeriod } from '../settlements/period.js';
-import { PurchaseEditService } from './purchase-edit.service.js';
+import { PurchaseEditService, type PurchaseEditInput } from './purchase-edit.service.js';
 import { WarehouseService } from './warehouse.service.js';
 
 @Controller('warehouse')
@@ -62,5 +62,16 @@ export class WarehouseController {
   @Get('purchases/:sdId/history')
   history(@Param('sdId') sdId: string) {
     return this.edit.history(sdId);
+  }
+
+  @Put('purchases/:sdId')
+  @HttpCode(204)
+  update(@Param('sdId') sdId: string, @Body() body: PurchaseEditInput, @CurrentUser() user: AuthUser) {
+    return this.edit.update(sdId, body, user);
+  }
+
+  @Get('form-options')
+  formOptions() {
+    return this.warehouse.formOptions();
   }
 }

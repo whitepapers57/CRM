@@ -119,4 +119,20 @@ export class WarehouseService {
       })),
     };
   }
+
+  async formOptions() {
+    const [warehouses, suppliers, products] = await Promise.all([
+      this.prisma.warehouse.findMany({ select: { sdId: true, name: true } }),
+      this.prisma.supplier.findMany({ select: { sdId: true, name: true } }),
+      this.prisma.product.findMany({ select: { sdId: true, name: true, active: true } }),
+    ]);
+    const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'ru');
+    return {
+      warehouses: warehouses.sort(byName),
+      suppliers: suppliers.sort(byName),
+      products: products
+        .sort((a, b) => Number(b.active) - Number(a.active) || byName(a, b))
+        .map(({ sdId, name }) => ({ sdId, name })),
+    };
+  }
 }

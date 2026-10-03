@@ -82,3 +82,83 @@ describe('PurchaseEditService — delete and restore', () => {
     await expect(edit.remove('nope', 'x', user)).rejects.toThrow('Накладная не найдена');
   });
 });
+
+describe('PurchaseEditService — edit through Salesdoc', () => {
+  const call = salesdoc.call as unknown as ReturnType<typeof vi.fn>;
+  const ok = { status: true, result: { completed: 1, error: 0, data: { purchase: [{ CS_id: 'f5-d0_1' }] } } };
+
+  beforeEach(async () => {
+    await truncateAll(db);
+    call.mockReset();
+    await db.user.create({ data: { id: 'u1', login: 'sardor', name: 'Сардорбек', passwordHash: 'x' } });
+    await db.warehouse.createMany({ data: [{ sdId: 'w1', name: 'Нич', active: true, raw: {}, seenAt }, { sdId: 'w2', name: 'Импорт', active: true, raw: {}, seenAt }] });
+    await db.product.createMany({ data: [{ sdId: 'p1', name: 'Дюшес 1.5', active: true, raw: {}, seenAt }, { sdId: 'p2', name: 'Тархун 1.5', active: true, raw: {}, seenAt }] });
+    await db.purchase.create({
+      data: {
+        sdId: 'd0_1', csId: 'f5-d0_1', date: new Date('2026-10-02T15:52:51Z'), total: 100, warehouseSdId: 'w1', supplierSdId: '1',
+        raw: { priceType: { SD_id: 'd0_61' } }, seenAt,
+        lines: { create: [{ productSdId: 'p1', productName: 'Дюшес 1.5', quantity: 10, price: 10, amount: 100 }] },
+      },
+    });
+  });
+
+  const input = { date: '2026-10-03', warehouseSdId: 'w2', supplierSdId: '1', lines: [{ productSdId: 'p2', quantity: 3, price: 12.5 }] };
+
+  it('sends setPurchase to Salesdoc, then updates our copy and records before/after', async () => {
+    call.mockResolvedValue(ok);
+    await edit.update('d0_1', input, user);
+
+    expect(call).toHaveBeenCalledWith('setPurchase', {
+      data: {
+        purchase: [{
+          CS_id: 'f5-d0_1',
+          date: '2026-10-03 15:52:51',
+          priceType: { SD_id: 'd0_61' },
+          store: { SD_id: 'w2' },
+          shipper: { SD_id: '1' },
+          products: [{ SD_id: 'p2', quantity: 3, price: 12.5 }],
+        }],
+      },
+    });
+    const p = await db.purchase.findUniqueOrThrow({ where: { sdId: 'd0_1' }, include: { lines: true } });
+    expect(p.warehouseSdId).toBe('w2');
+    expect(p.total.toString()).toBe('37.5');
+    expect(p.date.toISOString()).toBe('2026-10-03T15:52:51.000Z');
+    expect(p.lines.map((l) => [l.productName, l.quantity.toString(), l.amount.toString()])).toEqual([['Тархун 1.5', '3', '37.5']]);
+
+    const [entry] = await edit.history('d0_1');
+    expect(entry).toMatchObject({ action: 'purchase.edit', userName: 'Сардорбек' });
+    expect(entry.before).toMatchObject({ warehouseSdId: 'w1', lines: [{ productSdId: 'p1', quantity: '10', price: '10' }] });
+    expect(entry.after).toMatchObject({ warehouseSdId: 'w2', lines: [{ productSdId: 'p2', quantity: '3', price: '12.5' }] });
+  });
+
+  it('changes nothing when Salesdoc reports an error without throwing', async () => {
+    call.mockResolvedValue({ status: true, result: { completed: 0, error: 1, data: { purchase: [{ errors: ['Склад не найден'] }] } } });
+    await expect(edit.update('d0_1', input, user)).rejects.toThrow('Склад не найден');
+    expect((await db.purchase.findUniqueOrThrow({ where: { sdId: 'd0_1' } })).warehouseSdId).toBe('w1');
+    expect(await edit.history('d0_1')).toEqual([]);
+  });
+
+  it('changes nothing when the Salesdoc call throws', async () => {
+    call.mockRejectedValue(new Error('fetch failed'));
+    await expect(edit.update('d0_1', input, user)).rejects.toThrow('fetch failed');
+    expect((await db.purchase.findUniqueOrThrow({ where: { sdId: 'd0_1' } })).total.toString()).toBe('100');
+  });
+
+  it('refuses a move into a closed month even from an open one', async () => {
+    await months.setClosed('2026-09', true, user);
+    await expect(edit.update('d0_1', { ...input, date: '2026-09-30' }, user)).rejects.toThrow('Месяц закрыт');
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it('validates the input before calling Salesdoc', async () => {
+    await expect(edit.update('d0_1', { ...input, lines: [] }, user)).rejects.toThrow('Добавьте хотя бы одну строку');
+    await expect(edit.update('d0_1', { ...input, lines: [{ productSdId: 'p2', quantity: 0, price: 1 }] }, user)).rejects.toThrow('Количество должно быть больше нуля');
+    await expect(edit.update('d0_1', { ...input, lines: [{ productSdId: 'zz', quantity: 1, price: 1 }] }, user)).rejects.toThrow('Товар не найден');
+    await expect(edit.update('d0_1', { ...input, warehouseSdId: 'zz' }, user)).rejects.toThrow('Склад не найден');
+    await expect(edit.update('d0_1', { ...input, date: '2026-08-20' }, user)).rejects.toThrow('Дата раньше 01.09.2026');
+    await edit.remove('d0_1', 'x', user);
+    await expect(edit.update('d0_1', input, user)).rejects.toThrow('Накладная удалена');
+    expect(call).not.toHaveBeenCalled();
+  });
+});
