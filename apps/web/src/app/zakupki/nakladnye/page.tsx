@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
+import { CheckboxField } from "@/components/app/checkbox-field";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
 import { PagePeriod } from "@/components/app/page-period";
@@ -12,12 +13,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type PurchaseList } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
+import { tashkentInstant } from "@/lib/month-label";
+import { cn } from "@/lib/utils";
 
 export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki/nakladnye">) {
   const t = await getT();
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
-  const q = { from: get("from"), to: get("to"), supplier: get("supplier"), warehouse: get("warehouse"), search: get("search") };
+  const q = { from: get("from"), to: get("to"), supplier: get("supplier"), warehouse: get("warehouse"), search: get("search"), includeHidden: get("includeHidden") };
   const res = await apiGet<PurchaseList>(`/warehouse/purchases${qs(q)}`);
   const header = (
     <PageHeader title={t("nav.receipts")}>
@@ -61,6 +64,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
             ]}
           />
           <Input name="search" defaultValue={q.search} placeholder={t("zakupki.search_number")} aria-label={t("zakupki.search_number")} className="w-48" />
+          <CheckboxField name="includeHidden" defaultChecked={q.includeHidden === "true"} label={t("receipt.show_deleted")} />
           <Button type="submit" variant="secondary" className="active:scale-95">{t("common.apply")}</Button>
         </form>
       </StickyToolbar>
@@ -82,11 +86,18 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
               <TableRow><TableCell colSpan={6}><Text variant="caption">{t("common.empty")}</Text></TableCell></TableRow>
             )}
             {rows.map((r) => (
-              <TableRow key={r.sdId} className="relative hover:bg-muted/50">
+              <TableRow key={r.sdId} className={cn("relative hover:bg-muted/50", r.hidden && "text-muted-foreground [&_td]:line-through")}>
                 <TableCell className="whitespace-nowrap">
                   <Link href={link(r.sdId)} className="after:absolute after:inset-0">{formatDateTime(r.date)}</Link>
                 </TableCell>
-                <TableCell className="font-mono text-xs">{r.sdId}</TableCell>
+                <TableCell className="font-mono text-xs no-underline!">
+                  <span className={cn(r.hidden && "line-through")}>{r.sdId}</span>
+                  {r.hidden && (
+                    <div className="max-w-64 whitespace-normal font-sans text-xs text-destructive">
+                      {t("receipt.deleted_banner", { by: r.hidden.by, at: formatDateTime(tashkentInstant(r.hidden.at)), reason: r.hidden.reason })}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>{r.supplierName ?? r.supplierSdId}</TableCell>
                 <TableCell className="text-right"><Money value={r.total} /></TableCell>
                 <TableCell>{r.warehouseName}</TableCell>

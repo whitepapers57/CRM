@@ -1,13 +1,16 @@
 import { ApiError } from "@/components/app/api-error";
+import { HistoryList } from "@/components/app/history-list";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getT } from "@/i18n/server";
-import { apiGet, type PurchaseDetail } from "@/lib/api";
+import { getLocale, getT } from "@/i18n/server";
+import { apiGet, type AuditEntry, type FormOptions, type PurchaseDetail } from "@/lib/api";
 import { formatDate, formatDateTime, formatQty } from "@/lib/format";
+import { tashkentInstant } from "@/lib/month-label";
+import { ReceiptActions } from "./receipt-actions";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,8 +23,13 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default async function ReceiptPage({ params }: PageProps<"/zakupki/nakladnye/[sdId]">) {
   const t = await getT();
+  const locale = await getLocale();
   const { sdId } = await params;
-  const res = await apiGet<PurchaseDetail>(`/warehouse/purchases/${encodeURIComponent(sdId)}`);
+  const [res, history, opts] = await Promise.all([
+    apiGet<PurchaseDetail>(`/warehouse/purchases/${encodeURIComponent(sdId)}`),
+    apiGet<AuditEntry[]>(`/warehouse/purchases/${encodeURIComponent(sdId)}/history`),
+    apiGet<FormOptions>("/warehouse/form-options"),
+  ]);
   if (!res.ok) {
     return (
       <>
@@ -31,11 +39,21 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
     );
   }
   const p = res.data;
+  // sdId → name for the history's before/after snapshots.
+  const names: Record<string, string> = {};
+  if (opts.ok) for (const x of [...opts.data.warehouses, ...opts.data.suppliers, ...opts.data.products]) names[x.sdId] = x.name;
   return (
     <>
       <StickyToolbar>
-        <PageHeader title={t("zakupki.receipt_title", { number: p.sdId, date: formatDate(p.date) })} />
+        <PageHeader title={t("zakupki.receipt_title", { number: p.sdId, date: formatDate(p.date) })}>
+          <ReceiptActions sdId={p.sdId} monthOpen={p.monthOpen} hidden={!!p.hidden} locale={locale} />
+        </PageHeader>
       </StickyToolbar>
+      {p.hidden && (
+        <div role="status" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {t("receipt.deleted_banner", { by: p.hidden.by, at: formatDateTime(tashkentInstant(p.hidden.at)), reason: p.hidden.reason })}
+        </div>
+      )}
       <Card>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label={t("zakupki.supplier")} value={p.supplierName ?? "—"} />
@@ -73,6 +91,7 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
           </TableBody>
         </Table>
       </div>
+      <HistoryList entries={history.ok ? history.data : []} names={names} />
     </>
   );
 }

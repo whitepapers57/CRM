@@ -106,6 +106,7 @@ export interface PurchaseList {
     supplierName: string | null;
     lineCount: number;
     total: string;
+    hidden: { by: string; at: string; reason: string } | null;
   }>;
 }
 
@@ -116,6 +117,10 @@ export interface SupplierList {
 export interface PurchaseDetail {
   sdId: string;
   date: string;
+  warehouseSdId: string | null;
+  supplierSdId: string | null;
+  monthOpen: boolean;
+  hidden: { by: string; at: string; reason: string } | null;
   warehouseName: string | null;
   supplierName: string | null;
   total: string;
@@ -149,4 +154,10 @@ export interface AuditEntry {
   reason: string | null;
   before: unknown;
   after: unknown;
+}
+
+export interface FormOptions {
+  warehouses: Array<{ sdId: string; name: string }>;
+  suppliers: Array<{ sdId: string; name: string }>;
+  products: Array<{ sdId: string; name: string }>;
 }

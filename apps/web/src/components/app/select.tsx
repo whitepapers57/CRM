@@ -17,23 +17,34 @@ export interface SelectOption {
 /**
  * The shared dropdown (design-system popup, not the browser's native list).
  * `name` submits the chosen value with an ordinary form; value "" means "all".
+ * Pass `value` + `onValueChange` to use it as a controlled field instead.
  */
 export function Select({
   name,
   defaultValue = "",
+  value,
+  onValueChange,
+  invalid,
   options,
   ariaLabel,
   className,
 }: {
-  name: string;
+  name?: string;
   defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  invalid?: boolean;
   options: SelectOption[];
   ariaLabel: string;
   className?: string;
 }) {
   return (
-    <SelectRoot name={name} defaultValue={defaultValue} items={options}>
-      <SelectTrigger aria-label={ariaLabel} className={cn("h-9 min-w-44 active:scale-[0.98]", className)}>
+    <SelectRoot
+      name={name}
+      items={options}
+      {...(value === undefined ? { defaultValue } : { value, onValueChange: (v: string | null) => onValueChange?.(v ?? "") })}
+    >
+      <SelectTrigger aria-label={ariaLabel} aria-invalid={invalid ? true : undefined} className={cn("h-9 min-w-44 active:scale-[0.98]", className)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} align="start" className="w-auto min-w-(--anchor-width) max-w-96">
