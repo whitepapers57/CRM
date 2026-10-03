@@ -1,29 +1,41 @@
+import { redirect } from "next/navigation";
+import { getSessionToken } from "./session";
+
 const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
+  const token = await getSessionToken();
+  let res: Response;
+  let body: unknown = null;
   try {
-    const res = await fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      const message = Array.isArray(body?.message) ? body.message.join(", ") : body?.message;
-      return { ok: false, status: res.status, message: message ?? res.statusText };
-    }
-    return { ok: true, data: body as T };
+    res = await fetch(`${API_URL}${path}`, {
+      cache: "no-store",
+      ...init,
+      headers: { ...(init?.headers ?? {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    });
+    body = res.status === 204 ? null : await res.json().catch(() => null);
   } catch {
     return { ok: false, status: 0, message: "" };
   }
+  // Outside try/catch: redirect() works by throwing.
+  if (res.status === 401) redirect("/login");
+  if (!res.ok) {
+    const b = body as { message?: string | string[] } | null;
+    const message = Array.isArray(b?.message) ? b.message.join(", ") : b?.message;
+    return { ok: false, status: res.status, message: message ?? res.statusText };
+  }
+  return { ok: true, data: body as T };
 }
 
 export const apiGet = <T>(path: string) => request<T>(path);
+const withBody = (method: string) => <T>(path: string, body?: unknown) =>
+  request<T>(path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+export const apiPost = withBody("POST");
+export const apiPut = withBody("PUT");
+export const apiDelete = withBody("DELETE");
 
-export const apiPost = <T>(path: string, body: unknown) =>
-  request<T>(path, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
 
 /** `?from=..&to=..` plus extra params, skipping empty values. */
 export function qs(params: Record<string, string | undefined>): string {

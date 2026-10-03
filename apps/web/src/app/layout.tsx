@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleSwitch } from "@/components/app/locale-switch";
 import { Sidebar, type NavItem } from "@/components/app/sidebar";
+import { UserMenu } from "@/components/app/user-menu";
 import { getLocale, getT } from "@/i18n/server";
+import { getMe } from "@/lib/session";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin", "cyrillic"] });
@@ -15,6 +17,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
+  const me = await getMe();
   const t = await getT();
   const items: NavItem[] = [
     { href: "/", label: t("nav.reconciliation") },
@@ -39,7 +42,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Sidebar
           title={t("app.title")}
           items={items}
-          footer={<LocaleSwitch current={locale} label={t("common.locale")} />}
+          footer={
+            <div className="flex flex-col gap-3">
+              {me && <UserMenu name={me.name} label={t("auth.logout")} />}
+              <LocaleSwitch current={locale} label={t("common.locale")} />
+            </div>
+          }
         />
         <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-6 px-4 py-8">{children}</main>
       </body>

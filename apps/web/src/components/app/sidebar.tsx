@@ -14,6 +14,8 @@ export interface NavItem {
 
 export function Sidebar({ title, items, footer }: { title: string; items: NavItem[]; footer: React.ReactNode }) {
   const pathname = usePathname();
+  // The login page stands alone.
+  if (pathname === "/login") return null;
   const isActive = (i: NavItem) => {
     const m = i.match ?? i.href;
     return m === "/" ? pathname === "/" : pathname.startsWith(m);
