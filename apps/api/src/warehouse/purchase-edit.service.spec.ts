@@ -173,8 +173,35 @@ describe('PurchaseEditService — edit through Salesdoc', () => {
     await expect(edit.update('d0_1', { ...input, lines: [{ productSdId: 'zz', quantity: 1, price: 1 }] }, user)).rejects.toThrow('Товар не найден');
     await expect(edit.update('d0_1', { ...input, warehouseSdId: 'zz' }, user)).rejects.toThrow('Склад не найден');
     await expect(edit.update('d0_1', { ...input, date: '2026-08-20' }, user)).rejects.toThrow('Дата раньше 01.09.2026');
+    await expect(edit.update('d0_1', { ...input, date: '2026-10-32' }, user)).rejects.toThrow('Неверная дата');
+    await expect(edit.update('d0_1', { ...input, date: '2026-02-31' }, user)).rejects.toThrow('Неверная дата');
     await edit.remove('d0_1', 'x', user);
     await expect(edit.update('d0_1', input, user)).rejects.toThrow('Накладная удалена');
     expect(call).not.toHaveBeenCalled();
+  });
+
+  it('refuses to clear the supplier of a receipt that has one', async () => {
+    await expect(edit.update('d0_1', { ...input, supplierSdId: null }, user)).rejects.toThrow('Поставщика нельзя убрать');
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it('records the edit even when our copy vanished after Salesdoc accepted it', async () => {
+    // The sync replaced the row between the Salesdoc call and our update.
+    call.mockImplementation(async () => {
+      await db.purchase.delete({ where: { sdId: 'd0_1' } });
+      return ok;
+    });
+    await expect(edit.update('d0_1', input, user)).resolves.toBeUndefined();
+    const [entry] = await edit.history('d0_1');
+    expect(entry).toMatchObject({ action: 'purchase.edit', userName: 'Сардорбек' });
+    expect(entry.after).toMatchObject({ warehouseSdId: 'w2' });
+  });
+
+  it('sends the shown price when the stored amount does not fit it', async () => {
+    // amount 150 for 10 × 10 is inconsistent: 15 per unit is not "10.00 rounded".
+    await db.purchaseLine.updateMany({ data: { amount: 150 } });
+    call.mockResolvedValue(ok);
+    await edit.update('d0_1', { ...input, lines: [{ productSdId: 'p1', quantity: 10, price: 10 }] }, user);
+    expect(call.mock.calls[0][1].data.purchase[0].products[0].price).toBe(10);
   });
 });

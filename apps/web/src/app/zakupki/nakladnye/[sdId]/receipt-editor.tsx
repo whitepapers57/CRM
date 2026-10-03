@@ -122,7 +122,11 @@ export function ReceiptEditor({
             value={supplier}
             onValueChange={setSupplier}
             ariaLabel={t("zakupki.supplier")}
-            options={[{ value: "", label: "—" }, ...options.suppliers.map((s) => ({ value: s.sdId, label: s.name }))]}
+            options={[
+              // A supplier cannot be cleared (Salesdoc may keep it); «—» only for receipts that have none.
+              ...(initial.supplierSdId ? [] : [{ value: "", label: "—" }]),
+              ...options.suppliers.map((s) => ({ value: s.sdId, label: s.name })),
+            ]}
           />
         </div>
         <DateField label={t("zakupki.date")} value={date} onChange={setDate} min={DATA_START} error={errors.date} locale={locale} />

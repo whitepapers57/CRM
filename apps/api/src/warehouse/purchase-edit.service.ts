@@ -4,6 +4,7 @@ import {
   ConflictException,
   HttpException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
@@ -25,6 +26,8 @@ export interface PurchaseEditInput {
 type SetPurchaseResult = { completed?: number; data?: { purchase?: Array<{ errors?: string[] }> } };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A real calendar day: "2026-02-31" matches DAY but is not one. */
+const isDay = (v: string) => DAY.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
 const snapshot = (p: { date: Date; warehouseSdId: string | null; supplierSdId: string | null; lines: Array<{ productSdId: string | null; quantity: Prisma.Decimal | number; price: Prisma.Decimal | number }> }) => ({
   date: p.date.toISOString(),
   warehouseSdId: p.warehouseSdId,
@@ -34,6 +37,8 @@ const snapshot = (p: { date: Date; warehouseSdId: string | null; supplierSdId: s
 
 @Injectable()
 export class PurchaseEditService {
+  private readonly log = new Logger(PurchaseEditService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly salesdoc: SalesdocClient,
@@ -85,7 +90,7 @@ export class PurchaseEditService {
 
   /** Writes the change to Salesdoc (setPurchase); our copy changes only after Salesdoc accepts it. */
   async update(sdId: string, input: PurchaseEditInput, user: AuthUser): Promise<void> {
-    if (!DAY.test(input.date ?? '')) throw new BadRequestException('Неверная дата');
+    if (!isDay(input.date ?? '')) throw new BadRequestException('Неверная дата');
     if (input.date < DATA_START) throw new BadRequestException('Дата раньше 01.09.2026');
     if (!input.lines?.length) throw new BadRequestException('Добавьте хотя бы одну строку');
     for (const l of input.lines) {
@@ -96,6 +101,8 @@ export class PurchaseEditService {
     if (await this.prisma.purchaseHidden.findUnique({ where: { purchaseSdId: sdId } })) {
       throw new ConflictException('Накладная удалена');
     }
+    // Leaving `shipper` out of setPurchase may not clear it in Salesdoc, so our copy would disagree.
+    if (p.supplierSdId && p.supplierSdId !== '-' && !input.supplierSdId) throw new BadRequestException('Поставщика нельзя убрать');
     if (!(await this.prisma.warehouse.findUnique({ where: { sdId: input.warehouseSdId } }))) {
       throw new BadRequestException('Склад не найден');
     }
@@ -113,7 +120,10 @@ export class PurchaseEditService {
     // is left as it was keeps the exact one (stored amount ÷ quantity), so re-sending changes nothing.
     const exact = new Map<string, Prisma.Decimal>();
     for (const l of p.lines) {
-      if (l.productSdId && l.quantity.gt(0)) exact.set(`${l.productSdId}|${l.price.toFixed(2)}`, l.amount.div(l.quantity));
+      if (!l.productSdId || !l.quantity.gt(0)) continue;
+      const unit = l.amount.div(l.quantity);
+      // Only an amount that really is quantity × (shown price, unrounded) gives the exact price.
+      if (unit.minus(l.price).abs().lt(0.005)) exact.set(`${l.productSdId}|${l.price.toFixed(2)}`, unit);
     }
     const lines = input.lines.map((l) => {
       const quantity = new Prisma.Decimal(l.quantity).toDecimalPlaces(3);
@@ -146,25 +156,29 @@ export class PurchaseEditService {
 
     const total = lines.reduce((s, l) => s.plus(l.amount), new Prisma.Decimal(0));
     const date = new Date(`${input.date}T${time}Z`);
-    await this.prisma.$transaction(async (tx) => {
-      await tx.purchaseLine.deleteMany({ where: { purchaseSdId: sdId } });
-      await tx.purchase.update({
-        where: { sdId },
-        data: {
-          date,
-          warehouseSdId: input.warehouseSdId,
-          supplierSdId: input.supplierSdId ?? null,
-          total,
-          lines: { create: lines.map(({ unit: _unit, ...l }) => l) },
-        },
-      });
-      await this.audit.record(tx, {
-        user,
-        action: 'purchase.edit',
-        target: sdId,
-        before: snapshot(p),
-        after: snapshot({ date, warehouseSdId: input.warehouseSdId, supplierSdId: input.supplierSdId ?? null, lines: lines.map(({ unit: _unit, ...l }) => l) }),
-      });
+    const stored = lines.map(({ unit: _unit, ...l }) => l);
+    // Salesdoc has accepted: the history entry is written first and on its own, so a failure
+    // updating our copy can never leave a Salesdoc change unrecorded.
+    await this.audit.record(this.prisma, {
+      user,
+      action: 'purchase.edit',
+      target: sdId,
+      before: snapshot(p),
+      after: snapshot({ date, warehouseSdId: input.warehouseSdId, supplierSdId: input.supplierSdId ?? null, lines: stored }),
     });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const { count } = await tx.purchase.updateMany({
+          where: { sdId },
+          data: { date, warehouseSdId: input.warehouseSdId, supplierSdId: input.supplierSdId ?? null, total },
+        });
+        if (count === 0) return; // the sync replaced the row meanwhile; its next pass brings Salesdoc's version
+        await tx.purchaseLine.deleteMany({ where: { purchaseSdId: sdId } });
+        await tx.purchaseLine.createMany({ data: stored.map((l) => ({ ...l, purchaseSdId: sdId })) });
+      });
+    } catch (e) {
+      // Salesdoc already holds the change and the history has it; the next sync refreshes our copy.
+      this.log.warn(`Salesdoc accepted ${sdId} but our copy was not updated: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 }
