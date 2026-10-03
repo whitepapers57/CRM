@@ -3,6 +3,9 @@ import { PrismaService } from '../database/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { Period } from '../settlements/period.js';
 
+type HiddenRow = { hiddenByName: string; hiddenAt: Date; reason: string };
+const hiddenInfo = (h?: HiddenRow | null) => (h ? { by: h.hiddenByName, at: h.hiddenAt.toISOString(), reason: h.reason } : null);
+
 const s2 = (v: Prisma.Decimal) => v.toFixed(2);
 const s3 = (v: Prisma.Decimal) => v.toFixed(3);
 
@@ -43,8 +46,9 @@ export class WarehouseService {
     return { warehouses: n.warehouses, rows };
   }
 
-  async purchases(p: Period, q: { supplier?: string; warehouse?: string; search?: string } = {}) {
+  async purchases(p: Period, q: { supplier?: string; warehouse?: string; search?: string; includeHidden?: boolean } = {}) {
     const n = await this.names();
+    const hidden = new Map((await this.prisma.purchaseHidden.findMany()).map((h) => [h.purchaseSdId, h]));
     const suppliers = await this.prisma.supplier.findMany({
       orderBy: { name: 'asc' },
       select: { sdId: true, name: true },
@@ -56,12 +60,18 @@ export class WarehouseService {
         date: { gte: p.from, lt: p.toExclusive },
         ...(q.supplier ? { supplierSdId: q.supplier } : {}),
         ...(q.warehouse ? { warehouseSdId: q.warehouse } : {}),
-        ...(search ? { sdId: { contains: search, mode: 'insensitive' } } : {}),
+        sdId: {
+          ...(search ? { contains: search, mode: 'insensitive' as const } : {}),
+          // Deleted (hidden) receipts stay out unless asked for.
+          ...(q.includeHidden ? {} : { notIn: [...hidden.keys()] }),
+        },
       },
       orderBy: [{ date: 'desc' }, { sdId: 'desc' }],
       include: { _count: { select: { lines: true } } },
     });
-    const total = list.reduce((sum, x) => sum.plus(x.total), new Prisma.Decimal(0));
+    const total = list
+      .filter((x) => !hidden.has(x.sdId))
+      .reduce((sum, x) => sum.plus(x.total), new Prisma.Decimal(0));
     return {
       total: s2(total),
       filters: { suppliers, warehouses: n.warehouses },
@@ -74,6 +84,7 @@ export class WarehouseService {
         supplierName: x.supplierSdId ? (n.supplier.get(x.supplierSdId) ?? null) : null,
         lineCount: x._count.lines,
         total: s2(x.total),
+        hidden: hiddenInfo(hidden.get(x.sdId)),
       })),
     };
   }
@@ -85,9 +96,17 @@ export class WarehouseService {
     });
     if (!x) throw new NotFoundException(`Purchase ${sdId} not found`);
     const n = await this.names();
+    const [hidden, month] = await Promise.all([
+      this.prisma.purchaseHidden.findUnique({ where: { purchaseSdId: sdId } }),
+      this.prisma.month.findUnique({ where: { month: x.date.toISOString().slice(0, 7) } }),
+    ]);
     return {
       sdId: x.sdId,
       date: x.date.toISOString(),
+      warehouseSdId: x.warehouseSdId,
+      supplierSdId: x.supplierSdId,
+      monthOpen: !month?.closed,
+      hidden: hiddenInfo(hidden),
       warehouseName: x.warehouseSdId ? (n.warehouse.get(x.warehouseSdId) ?? null) : null,
       supplierName: x.supplierSdId ? (n.supplier.get(x.supplierSdId) ?? null) : null,
       total: s2(x.total),

@@ -159,11 +159,13 @@ export class SettlementsService {
           : Prisma.empty;
     const [{ opening }] = await this.prisma.$queryRaw<Array<{ opening: Dec | null }>>`
       SELECT SUM(total) AS opening FROM "Purchase"
-      WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp ${only}`;
+      WHERE date >= ${p.windowStart}::timestamp AND date < ${p.fromDay}::timestamp ${only}
+        AND "sdId" NOT IN (SELECT "purchaseSdId" FROM "PurchaseHidden")`;
     const purchases = await this.prisma.purchase.findMany({
       where: {
         date: { gte: p.from, lt: p.toExclusive },
         ...(supplierSdId ? { supplierSdId: supplierSdId === NO_SUPPLIER ? null : supplierSdId } : {}),
+        sdId: { notIn: (await this.prisma.purchaseHidden.findMany({ select: { purchaseSdId: true } })).map((h) => h.purchaseSdId) },
       },
       orderBy: [{ date: 'asc' }, { sdId: 'asc' }],
     });
@@ -200,6 +202,7 @@ export class SettlementsService {
           SUM(total) AS balance
         FROM "Purchase"
         WHERE date >= ${p.windowStart}::timestamp AND date < ${p.toExclusiveDay}::timestamp
+          AND "sdId" NOT IN (SELECT "purchaseSdId" FROM "PurchaseHidden")
         GROUP BY 1`,
     ]);
     const names = new Map(listed.map((x) => [x.sdId, x.name]));

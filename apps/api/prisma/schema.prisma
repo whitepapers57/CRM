@@ -334,3 +334,13 @@ model AuditLog {
   @@index([target, at])
   @@index([action, at])
 }
+
+/// A receipt deleted in our app (Salesdoc has no delete). No FK on purpose:
+/// the sync deletes and re-inserts Purchase rows, which must not erase this.
+model PurchaseHidden {
+  purchaseSdId String   @id
+  hiddenById   String
+  hiddenByName String
+  hiddenAt     DateTime @default(now())
+  reason       String
+}
