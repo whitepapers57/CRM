@@ -109,6 +109,18 @@ export class PurchaseEditService {
     const priceType = (p.raw as { priceType?: { SD_id?: string } } | null)?.priceType?.SD_id;
     if (!priceType) throw new ConflictException('У накладной нет типа цены из Salesdoc');
     const time = p.date.toISOString().slice(11, 19);
+    // Salesdoc keeps unit prices beyond 2 decimals but shows them rounded; a line whose shown price
+    // is left as it was keeps the exact one (stored amount ÷ quantity), so re-sending changes nothing.
+    const exact = new Map<string, Prisma.Decimal>();
+    for (const l of p.lines) {
+      if (l.productSdId && l.quantity.gt(0)) exact.set(`${l.productSdId}|${l.price.toFixed(2)}`, l.amount.div(l.quantity));
+    }
+    const lines = input.lines.map((l) => {
+      const quantity = new Prisma.Decimal(l.quantity).toDecimalPlaces(3);
+      const shown = new Prisma.Decimal(l.price).toDecimalPlaces(2);
+      const unit = exact.get(`${l.productSdId}|${shown.toFixed(2)}`) ?? shown;
+      return { productSdId: l.productSdId, productName: products.get(l.productSdId)!, quantity, price: shown, unit, amount: quantity.times(unit).toDecimalPlaces(2) };
+    });
     let res: SalesdocResponse<SetPurchaseResult>;
     try {
       res = await this.salesdoc.call<SetPurchaseResult>('setPurchase', {
@@ -119,7 +131,7 @@ export class PurchaseEditService {
             priceType: { SD_id: priceType },
             store: { SD_id: input.warehouseSdId },
             ...(input.supplierSdId ? { shipper: { SD_id: input.supplierSdId } } : {}),
-            products: input.lines.map((l) => ({ SD_id: l.productSdId, quantity: Number(l.quantity), price: Number(l.price) })),
+            products: lines.map((l) => ({ SD_id: l.productSdId, quantity: l.quantity.toNumber(), price: l.unit.toDecimalPlaces(10).toNumber() })),
           }],
         },
       });
@@ -132,11 +144,6 @@ export class PurchaseEditService {
       throw new BadGatewayException(errors.join('; ') || 'Salesdoc не принял изменения');
     }
 
-    const lines = input.lines.map((l) => {
-      const quantity = new Prisma.Decimal(l.quantity).toDecimalPlaces(3);
-      const price = new Prisma.Decimal(l.price).toDecimalPlaces(2);
-      return { productSdId: l.productSdId, productName: products.get(l.productSdId)!, quantity, price, amount: quantity.times(price).toDecimalPlaces(2) };
-    });
     const total = lines.reduce((s, l) => s.plus(l.amount), new Prisma.Decimal(0));
     const date = new Date(`${input.date}T${time}Z`);
     await this.prisma.$transaction(async (tx) => {
@@ -148,7 +155,7 @@ export class PurchaseEditService {
           warehouseSdId: input.warehouseSdId,
           supplierSdId: input.supplierSdId ?? null,
           total,
-          lines: { create: lines },
+          lines: { create: lines.map(({ unit: _unit, ...l }) => l) },
         },
       });
       await this.audit.record(tx, {
@@ -156,7 +163,7 @@ export class PurchaseEditService {
         action: 'purchase.edit',
         target: sdId,
         before: snapshot(p),
-        after: snapshot({ date, warehouseSdId: input.warehouseSdId, supplierSdId: input.supplierSdId ?? null, lines }),
+        after: snapshot({ date, warehouseSdId: input.warehouseSdId, supplierSdId: input.supplierSdId ?? null, lines: lines.map(({ unit: _unit, ...l }) => l) }),
       });
     });
   }

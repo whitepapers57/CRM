@@ -132,6 +132,22 @@ describe('PurchaseEditService — edit through Salesdoc', () => {
     expect(entry.after).toMatchObject({ warehouseSdId: 'w2', lines: [{ productSdId: 'p2', quantity: '3', price: '12.5' }] });
   });
 
+  it("keeps Salesdoc's unrounded price when the shown price was not changed", async () => {
+    // Salesdoc stores 9101.8256…; its API (and our copy) only show 9101.83. Re-sending 9101.83 would
+    // change 3 931 988.66 into 3 931 990.56.
+    await db.purchaseLine.deleteMany({});
+    await db.purchaseLine.create({ data: { purchaseSdId: 'd0_1', productSdId: 'p1', productName: 'Дюшес 1.5', quantity: 432, price: 9101.83, amount: 3931988.66 } });
+    call.mockResolvedValue(ok);
+    await edit.update('d0_1', { ...input, lines: [{ productSdId: 'p1', quantity: 432, price: 9101.83 }, { productSdId: 'p2', quantity: 2, price: 9101.83 }] }, user);
+
+    const sent = call.mock.calls[0][1].data.purchase[0].products;
+    expect(sent[0].price).toBeCloseTo(3931988.66 / 432, 10);
+    expect(sent[1].price).toBe(9101.83); // another product: no stored exact price
+    const p = await db.purchase.findUniqueOrThrow({ where: { sdId: 'd0_1' }, include: { lines: { orderBy: { id: 'asc' } } } });
+    expect(p.lines.map((l) => [l.price.toString(), l.amount.toString()])).toEqual([['9101.83', '3931988.66'], ['9101.83', '18203.66']]);
+    expect(p.total.toString()).toBe('3950192.32');
+  });
+
   it('changes nothing when Salesdoc reports an error without throwing', async () => {
     call.mockResolvedValue({ status: true, result: { completed: 0, error: 1, data: { purchase: [{ errors: ['Склад не найден'] }] } } });
     await expect(edit.update('d0_1', input, user)).rejects.toThrow('Склад не найден');
