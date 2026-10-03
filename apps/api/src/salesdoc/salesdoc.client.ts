@@ -58,6 +58,9 @@ export class SalesdocClient {
   private session: Session | null = null;
   private pendingLogin: Promise<Session> | null = null;
 
+  /** A request Salesdoc has not answered by then fails instead of hanging (a save would spin forever). */
+  timeoutMs = 120_000;
+
   constructor(
     @Inject(SalesdocCredentialsStore)
     private readonly credentials: CredentialsSource,
@@ -192,11 +195,20 @@ export class SalesdocClient {
     creds: SalesdocCredentials,
     body: Record<string, unknown>,
   ): Promise<SalesdocResponse<T>> {
-    const res = await fetch(`https://${creds.domain}/api/v2`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`https://${creds.domain}/api/v2`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch (e) {
+      if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+        throw new SalesdocError(0, `Salesdoc не ответил за ${Math.round(this.timeoutMs / 1000)} с`);
+      }
+      throw e;
+    }
     const text = await res.text();
     try {
       return JSON.parse(text) as SalesdocResponse<T>;

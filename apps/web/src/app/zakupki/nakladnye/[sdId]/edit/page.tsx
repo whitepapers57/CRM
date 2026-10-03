@@ -2,18 +2,20 @@ import { ApiError } from "@/components/app/api-error";
 import { PageHeader } from "@/components/app/page-header";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { getLocale, getT } from "@/i18n/server";
-import { apiGet, type FormOptions, type PurchaseDetail } from "@/lib/api";
+import { apiGet, type FormOptions, type MonthRow, type PurchaseDetail } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
+import { tashkentToday } from "@/lib/today";
 import { ReceiptEditor } from "../receipt-editor";
 
 export default async function ReceiptEditPage({ params }: PageProps<"/zakupki/nakladnye/[sdId]/edit">) {
   const t = await getT();
   const locale = await getLocale();
   const { sdId } = await params;
-  const [res, opts] = await Promise.all([
+  const [res, opts, months] = await Promise.all([
     apiGet<PurchaseDetail>(`/warehouse/purchases/${encodeURIComponent(sdId)}`),
     apiGet<FormOptions>("/warehouse/form-options"),
+    apiGet<MonthRow[]>("/months"),
   ]);
   const header = (
     <StickyToolbar>
@@ -50,6 +52,8 @@ export default async function ReceiptEditPage({ params }: PageProps<"/zakupki/na
       <ReceiptEditor
         sdId={p.sdId}
         locale={locale}
+        closedMonths={months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []}
+        today={tashkentToday()}
         options={(opts as { data: FormOptions }).data}
         initial={{
           date: p.date.slice(0, 10),

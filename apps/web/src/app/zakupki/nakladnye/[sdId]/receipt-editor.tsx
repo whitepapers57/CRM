@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { FormOptions } from "@/lib/api";
+import { dateProblem, decimals } from "@/lib/receipt-rules";
 import { saveReceipt } from "../actions";
 
 const DATA_START = "2026-09-01";
@@ -43,11 +44,16 @@ export function ReceiptEditor({
   sdId,
   initial,
   options,
+  closedMonths,
+  today,
   locale,
 }: {
   sdId: string;
   initial: ReceiptInitial;
   options: FormOptions;
+  /** "YYYY-MM" of closed months: still pickable (to look), but not savable. */
+  closedMonths: string[];
+  today: string;
   locale: Locale;
 }) {
   const t = (key: MessageKey, vars?: Record<string, string>) => translate(locale, key, vars);
@@ -64,12 +70,25 @@ export function ReceiptEditor({
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  const closed = new Set(closedMonths);
+  const dateError = (day: string) => {
+    const why = dateProblem(day, closed, today);
+    if (why === "before") return t("errors.before_window", { date: "01.09.2026" });
+    if (why === "future") return t("errors.future");
+    if (why === "closed") return t("errors.month_closed");
+    return undefined;
+  };
+  const changeDate = (day: string) => {
+    setDate(day);
+    setErrors((e) => ({ ...e, date: dateError(day) }));
+  };
+
   const setLine = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const total = lines.reduce((s, l) => s + amount(l, exact), 0);
 
   const validate = () => {
     const e: typeof errors = { byLine: {} };
-    if (!date) e.date = t("errors.required");
+    e.date = date ? dateError(date) : t("errors.required");
     if (!warehouse) e.warehouse = t("errors.required");
     if (lines.length === 0) e.lines = t("errors.required");
     for (const l of lines) {
@@ -78,8 +97,10 @@ export function ReceiptEditor({
       const q = num(l.quantity), p = num(l.price);
       if (l.quantity.trim() === "") le.quantity = t("errors.required");
       else if (!(q > 0)) le.quantity = t("errors.positive");
+      else if (decimals(l.quantity) > 3) le.quantity = t("errors.max_decimals", { n: "3" });
       if (l.price.trim() === "") le.price = t("errors.required");
       else if (!(p >= 0)) le.price = t("errors.not_negative");
+      else if (decimals(l.price) > 2) le.price = t("errors.max_decimals", { n: "2" });
       if (Object.keys(le).length) e.byLine[l.key] = le;
     }
     setErrors(e);
@@ -129,7 +150,7 @@ export function ReceiptEditor({
             ]}
           />
         </div>
-        <DateField label={t("zakupki.date")} value={date} onChange={setDate} min={DATA_START} error={errors.date} locale={locale} />
+        <DateField label={t("zakupki.date")} value={date} onChange={changeDate} min={DATA_START} error={errors.date} locale={locale} />
       </div>
 
       {/* Lines: columns from sm up; on phones each line is a card (product, then quantity · price · amount). */}

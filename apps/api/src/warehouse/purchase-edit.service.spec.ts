@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { createTestDb, truncateAll } from '../testing/test-db.js';
 import { AuditService } from '../audit/audit.service.js';
 import { MonthsService } from '../months/months.service.js';
@@ -93,6 +94,7 @@ describe('PurchaseEditService — edit through Salesdoc', () => {
     await db.user.create({ data: { id: 'u1', login: 'sardor', name: 'Сардорбек', passwordHash: 'x' } });
     await db.warehouse.createMany({ data: [{ sdId: 'w1', name: 'Нич', active: true, raw: {}, seenAt }, { sdId: 'w2', name: 'Импорт', active: true, raw: {}, seenAt }] });
     await db.product.createMany({ data: [{ sdId: 'p1', name: 'Дюшес 1.5', active: true, raw: {}, seenAt }, { sdId: 'p2', name: 'Тархун 1.5', active: true, raw: {}, seenAt }] });
+    await db.supplier.create({ data: { sdId: '1', name: 'Основной поставщик', active: true, raw: {}, seenAt } });
     await db.purchase.create({
       data: {
         sdId: 'd0_1', csId: 'f5-d0_1', date: new Date('2026-10-02T15:52:51Z'), total: 100, warehouseSdId: 'w1', supplierSdId: '1',
@@ -175,9 +177,21 @@ describe('PurchaseEditService — edit through Salesdoc', () => {
     await expect(edit.update('d0_1', { ...input, date: '2026-08-20' }, user)).rejects.toThrow('Дата раньше 01.09.2026');
     await expect(edit.update('d0_1', { ...input, date: '2026-10-32' }, user)).rejects.toThrow('Неверная дата');
     await expect(edit.update('d0_1', { ...input, date: '2026-02-31' }, user)).rejects.toThrow('Неверная дата');
+    await expect(edit.update('d0_1', { ...input, date: '2099-01-01' }, user)).rejects.toThrow('Дата в будущем');
+    await expect(edit.update('d0_1', { ...input, supplierSdId: 'zz' }, user)).rejects.toThrow('Поставщик не найден');
+    await expect(edit.update('d0_1', { ...input, lines: [{ productSdId: 'p2', quantity: 1, price: 12.345 }] }, user)).rejects.toThrow('Цена: не больше 2 знаков после запятой');
+    await expect(edit.update('d0_1', { ...input, lines: [{ productSdId: 'p2', quantity: 1.2345, price: 1 }] }, user)).rejects.toThrow('Количество: не больше 3 знаков после запятой');
     await edit.remove('d0_1', 'x', user);
     await expect(edit.update('d0_1', input, user)).rejects.toThrow('Накладная удалена');
     expect(call).not.toHaveBeenCalled();
+  });
+
+  it('answers a double delete with 409, also when both arrive at once', async () => {
+    const results = await Promise.allSettled([edit.remove('d0_1', 'дубль', user), edit.remove('d0_1', 'дубль', user)]);
+    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    expect(failed).toHaveLength(1);
+    expect(failed[0].reason).toBeInstanceOf(ConflictException);
+    expect((await edit.history('d0_1')).filter((e) => e.action === 'purchase.delete')).toHaveLength(1);
   });
 
   it('refuses to clear the supplier of a receipt that has one', async () => {

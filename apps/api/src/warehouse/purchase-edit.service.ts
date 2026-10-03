@@ -26,6 +26,8 @@ export interface PurchaseEditInput {
 type SetPurchaseResult = { completed?: number; data?: { purchase?: Array<{ errors?: string[] }> } };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** Today in Tashkent (UTC+5), "YYYY-MM-DD". */
+const tashkentToday = () => new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10);
 /** A real calendar day: "2026-02-31" matches DAY but is not one. */
 const isDay = (v: string) => DAY.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
 const snapshot = (p: { date: Date; warehouseSdId: string | null; supplierSdId: string | null; lines: Array<{ productSdId: string | null; quantity: Prisma.Decimal | number; price: Prisma.Decimal | number }> }) => ({
@@ -61,16 +63,22 @@ export class PurchaseEditService {
     if (await this.prisma.purchaseHidden.findUnique({ where: { purchaseSdId: sdId } })) {
       throw new ConflictException('Накладная уже удалена');
     }
-    await this.prisma.$transaction(async (tx) => {
-      await tx.purchaseHidden.create({ data: { purchaseSdId: sdId, hiddenById: user.id, hiddenByName: user.name, reason: why } });
-      await this.audit.record(tx, {
-        user,
-        action: 'purchase.delete',
-        target: sdId,
-        reason: why,
-        before: { date: p.date.toISOString(), warehouseSdId: p.warehouseSdId, supplierSdId: p.supplierSdId, total: p.total.toFixed(2) },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.purchaseHidden.create({ data: { purchaseSdId: sdId, hiddenById: user.id, hiddenByName: user.name, reason: why } });
+        await this.audit.record(tx, {
+          user,
+          action: 'purchase.delete',
+          target: sdId,
+          reason: why,
+          before: { date: p.date.toISOString(), warehouseSdId: p.warehouseSdId, supplierSdId: p.supplierSdId, total: p.total.toFixed(2) },
+        });
       });
-    });
+    } catch (e) {
+      // Two deletes at once: the second loses on the primary key.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Накладная уже удалена');
+      throw e;
+    }
   }
 
   async restore(sdId: string, user: AuthUser): Promise<void> {
@@ -92,10 +100,14 @@ export class PurchaseEditService {
   async update(sdId: string, input: PurchaseEditInput, user: AuthUser): Promise<void> {
     if (!isDay(input.date ?? '')) throw new BadRequestException('Неверная дата');
     if (input.date < DATA_START) throw new BadRequestException('Дата раньше 01.09.2026');
+    if (input.date > tashkentToday()) throw new BadRequestException('Дата в будущем');
     if (!input.lines?.length) throw new BadRequestException('Добавьте хотя бы одну строку');
     for (const l of input.lines) {
       if (!(Number(l.quantity) > 0)) throw new BadRequestException('Количество должно быть больше нуля');
       if (!(Number(l.price) >= 0)) throw new BadRequestException('Цена не может быть отрицательной');
+      // Our copy keeps 3 / 2 decimals; refuse more instead of rounding what Salesdoc gets silently.
+      if (new Prisma.Decimal(l.quantity).decimalPlaces() > 3) throw new BadRequestException('Количество: не больше 3 знаков после запятой');
+      if (new Prisma.Decimal(l.price).decimalPlaces() > 2) throw new BadRequestException('Цена: не больше 2 знаков после запятой');
     }
     const p = await this.find(sdId);
     if (await this.prisma.purchaseHidden.findUnique({ where: { purchaseSdId: sdId } })) {
@@ -105,6 +117,9 @@ export class PurchaseEditService {
     if (p.supplierSdId && p.supplierSdId !== '-' && !input.supplierSdId) throw new BadRequestException('Поставщика нельзя убрать');
     if (!(await this.prisma.warehouse.findUnique({ where: { sdId: input.warehouseSdId } }))) {
       throw new BadRequestException('Склад не найден');
+    }
+    if (input.supplierSdId && !(await this.prisma.supplier.findUnique({ where: { sdId: input.supplierSdId } }))) {
+      throw new BadRequestException('Поставщик не найден');
     }
     const products = new Map(
       (await this.prisma.product.findMany({ where: { sdId: { in: input.lines.map((l) => l.productSdId) } } })).map((x) => [x.sdId, x.name]),

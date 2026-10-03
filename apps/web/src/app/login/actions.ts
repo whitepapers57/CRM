@@ -21,7 +21,7 @@ export async function login(
   if (!res) return { error: "api_down", login: typed };
   if (!res.ok) return { error: "bad_login", login: typed };
   const { token } = (await res.json()) as { token: string };
-  (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 30 * 24 * 3600 });
+  (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 24 * 3600 });
   redirect("/");
 }
 

@@ -11,17 +11,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getT } from "@/i18n/server";
-import { apiGet, qs, type PurchaseList } from "@/lib/api";
+import { apiGet, qs, type MonthRow, type PurchaseList } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
+import { RestoreButton } from "./restore-button";
+import { getLocale } from "@/i18n/server";
 
 export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki/nakladnye">) {
   const t = await getT();
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const q = { from: get("from"), to: get("to"), supplier: get("supplier"), warehouse: get("warehouse"), search: get("search"), includeHidden: get("includeHidden") };
-  const res = await apiGet<PurchaseList>(`/warehouse/purchases${qs(q)}`);
+  const locale = await getLocale();
+  const [res, months] = await Promise.all([apiGet<PurchaseList>(`/warehouse/purchases${qs(q)}`), apiGet<MonthRow[]>("/months")]);
+  const closed = new Set(months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []);
   const header = (
     <PageHeader title={t("nav.receipts")}>
       <PagePeriod from={q.from} to={q.to} />
@@ -97,6 +101,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
                       {t("receipt.deleted_banner", { by: r.hidden.by, at: formatDateTime(tashkentInstant(r.hidden.at)), reason: r.hidden.reason })}
                     </div>
                   )}
+                  {r.hidden && !closed.has(r.date.slice(0, 7)) && <RestoreButton sdId={r.sdId} locale={locale} />}
                 </TableCell>
                 <TableCell>{r.supplierName ?? r.supplierSdId}</TableCell>
                 <TableCell className="text-right"><Money value={r.total} /></TableCell>

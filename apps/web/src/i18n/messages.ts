@@ -160,6 +160,9 @@ export const messages = {
     "errors.required": "Заполните поле",
     "errors.positive": "Должно быть больше нуля",
     "errors.not_negative": "Не может быть отрицательным",
+    "errors.future": "Дата в будущем",
+    "errors.month_closed": "Месяц закрыт",
+    "errors.max_decimals": "Не больше {n} знаков после запятой",
   },
   uz: {
     "app.title": "Distribution Finance",
@@ -321,6 +324,9 @@ export const messages = {
     "errors.required": "Maydonni to'ldiring",
     "errors.positive": "Noldan katta bo'lishi kerak",
     "errors.not_negative": "Manfiy bo'lishi mumkin emas",
+    "errors.future": "Sana kelajakda",
+    "errors.month_closed": "Oy yopiq",
+    "errors.max_decimals": "Verguldan keyin {n} ta raqamdan ko'p emas",
   },
 } as const;
 

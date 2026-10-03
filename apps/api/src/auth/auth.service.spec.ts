@@ -40,6 +40,14 @@ describe('AuthService', () => {
     await expect(auth.login('sardor', 'pass-123')).rejects.toThrow('Неверный логин или пароль');
   });
 
+  it('stops a live session when the user is switched off without deleting its sessions', async () => {
+    await auth.createUser('sardor', 'Сардорбек', 'pass-123');
+    const { token } = await auth.login('sardor', 'pass-123');
+    await db.user.updateMany({ data: { active: false } });
+    expect(await db.session.count()).toBe(1);
+    expect(await auth.userFromToken(token)).toBeNull();
+  });
+
   it('rejects expired sessions, unknown tokens and logged-out tokens', async () => {
     await auth.createUser('sardor', 'Сардорбек', 'pass-123');
     const { token } = await auth.login('sardor', 'pass-123');

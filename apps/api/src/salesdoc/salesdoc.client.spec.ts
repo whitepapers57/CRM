@@ -103,6 +103,16 @@ describe('SalesdocClient', () => {
     expect(err).toMatchObject({ code: 403, message: 'Access denied' });
   });
 
+  it('gives up with a SalesdocError when Salesdoc does not answer in time', async () => {
+    client.timeoutMs = 30;
+    fetchMock.mockImplementation(
+      (_url, init: RequestInit) =>
+        new Promise((_resolve, reject) => init.signal?.addEventListener('abort', () => reject(init.signal?.reason))),
+    );
+    await expect(client.call('getPurchase')).rejects.toThrow(SalesdocError);
+    await expect(client.call('getPurchase')).rejects.toThrow('Salesdoc не ответил');
+  });
+
   it('sends the filial when the credentials name one', async () => {
     client = new SalesdocClient({ get: () => ({ ...creds, filialId: 'F1' }) });
     fetchMock
