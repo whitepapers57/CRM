@@ -310,3 +310,27 @@ model Session {
 
   @@index([userId])
 }
+
+/// A month is open unless a row says closed. Closing is done by hand.
+model Month {
+  month       String    @id // YYYY-MM
+  closed      Boolean   @default(false)
+  changedById String?
+  changedAt   DateTime?
+}
+
+/// Append-only history of edits, deletes, restores and month closing.
+model AuditLog {
+  id       String   @id @default(uuid())
+  at       DateTime @default(now())
+  userId   String
+  userName String
+  action   String
+  target   String
+  reason   String?
+  before   Json?
+  after    Json?
+
+  @@index([target, at])
+  @@index([action, at])
+}
