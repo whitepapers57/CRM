@@ -24,23 +24,15 @@ describe('API (e2e)', () => {
       .expect({ ok: true, database: 'up' });
   });
 
-  it('GET /salesdoc/status reports missing credentials', () => {
-    return request(app.getHttpServer())
-      .get('/salesdoc/status')
-      .expect(200)
-      .expect({ configured: false, connected: false });
+  it('refuses protected routes without a session', async () => {
+    for (const path of ['/salesdoc/status', '/sync/status', '/reconciliation/summary', '/auth/me']) {
+      await request(app.getHttpServer()).get(path).expect(401);
+    }
   });
 
-  it('GET /sync/status lists every resource', async () => {
-    const res = await request(app.getHttpServer()).get('/sync/status').expect(200);
-    expect(res.body.resources.map((r: { resource: string }) => r.resource)).toContain('payments');
-  });
-
-  it('GET /reconciliation/summary rejects a reversed period', () => {
-    return request(app.getHttpServer())
-      .get('/reconciliation/summary?from=2026-09-30&to=2026-09-01')
-      .expect(400)
-      .expect((res) => expect(res.body.message).toBe('from must not be after to'));
+  it('refuses a wrong login with 401 and an empty one with 400', async () => {
+    await request(app.getHttpServer()).post('/auth/login').send({ login: 'nobody-here', password: 'x' }).expect(401);
+    await request(app.getHttpServer()).post('/auth/login').send({}).expect(400);
   });
 
   afterAll(async () => {

@@ -288,3 +288,25 @@ model SyncCursor {
   fullStartedAt DateTime?
   nextPage      Int?
 }
+
+/// A person who can log in. Created with `npm run user:add -w @df/api`.
+model User {
+  id           String    @id @default(uuid())
+  login        String    @unique
+  name         String
+  passwordHash String
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+/// A login session; id = SHA-256 of the token the browser holds.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}

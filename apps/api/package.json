@@ -23,7 +23,10 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "user:add": "tsx scripts/user.ts add",
+    "user:passwd": "tsx scripts/user.ts passwd",
+    "user:disable": "tsx scripts/user.ts disable"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
