@@ -132,3 +132,21 @@ export interface SyncStatus {
     lastRun: { status: string; records: number; error: string | null; startedAt: string; finishedAt: string | null } | null;
   }>;
 }
+
+export interface MonthRow {
+  month: string;
+  closed: boolean;
+  changedBy: string | null;
+  changedAt: string | null;
+}
+
+export interface AuditEntry {
+  id: string;
+  at: string;
+  userName: string;
+  action: string;
+  target: string;
+  reason: string | null;
+  before: unknown;
+  after: unknown;
+}

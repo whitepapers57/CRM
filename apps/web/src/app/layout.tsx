@@ -35,6 +35,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     { href: "/nomenklatura", label: t("nav.nomenclature") },
     { href: "/otchety", label: t("nav.reports") },
     { href: "/settings/sync", label: t("nav.sync") },
+    { href: "/settings/months", label: t("nav.months") },
   ];
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
