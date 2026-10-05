@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
 import { MonthsModule } from './months/months.module.js';
+import { SalesModule } from './sales/sales.module.js';
 import { SalesdocModule } from './salesdoc/salesdoc.module.js';
 import { SettlementsModule } from './settlements/settlements.module.js';
 import { WarehouseModule } from './warehouse/warehouse.module.js';
@@ -21,6 +22,7 @@ import { SyncModule } from './sync/sync.module.js';
     SyncModule,
     SettlementsModule,
     WarehouseModule,
+    SalesModule,
   ],
   controllers: [HealthController],
 })

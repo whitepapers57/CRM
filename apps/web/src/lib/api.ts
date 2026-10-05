@@ -161,3 +161,35 @@ export interface FormOptions {
   suppliers: Array<{ sdId: string; name: string }>;
   products: Array<{ sdId: string; name: string }>;
 }
+
+export interface SalesOrderList {
+  total: string;
+  filters: { warehouses: Array<{ sdId: string; name: string }>; agents: Array<{ sdId: string; name: string }> };
+  rows: Array<{
+    sdId: string;
+    date: string;
+    status: number;
+    outletSdId: string | null;
+    outletName: string | null;
+    warehouseName: string | null;
+    agentName: string | null;
+    lineCount: number;
+    total: string;
+  }>;
+}
+
+export interface SalesOrder {
+  sdId: string;
+  date: string;
+  status: number;
+  outletSdId: string | null;
+  outletName: string | null;
+  warehouseName: string | null;
+  agentName: string | null;
+  expeditorName: string | null;
+  totalBeforeDiscount: string;
+  discount: string;
+  returns: string;
+  total: string;
+  lines: Array<{ productSdId: string | null; productName: string; quantity: string; price: string; discount: string; amount: string; returned: string }>;
+}

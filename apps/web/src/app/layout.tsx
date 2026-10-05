@@ -21,7 +21,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const t = await getT();
   const items: NavItem[] = [
     { href: "/", label: t("nav.reconciliation") },
-    { href: "/outlets", label: t("nav.outlets") },
+    // «Торговые точки» moved into Продажи as «Покупатели» on 5 Oct 2026:
+    // { href: "/outlets", label: t("nav.outlets") },
+    { href: "/prodazhi", label: t("nav.sales") },
     // Закупки opens its 1C-style panel (/zakupki) since 5 Oct 2026; it used to list two pages here:
     // children: [
     //   { href: "/zakupki/nakladnye", label: t("nav.receipts") },
