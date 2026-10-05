@@ -149,9 +149,9 @@ describe('SettlementsService', () => {
     const { rows } = await svc.suppliers(parsePeriod('2026-09-05', '2026-09-30', '2026-09-29'));
     // Russian collation: Cyrillic names before Latin ones.
     expect(rows).toEqual([
-      { sdId: '1', name: 'Основной поставщик', received: '500.00', paid: '0.00', debt: '-1500.00' },
-      { sdId: '9', name: 'AQUA', received: '0.00', paid: '0.00', debt: '0.00' },
-      { sdId: 'ghost', name: 'ghost', received: '70.00', paid: '0.00', debt: '-70.00' },
+      { sdId: '1', name: 'Основной поставщик', opening: '-1000.00', received: '500.00', paid: '0.00', debt: '-1500.00' },
+      { sdId: '9', name: 'AQUA', opening: '0.00', received: '0.00', paid: '0.00', debt: '0.00' },
+      { sdId: 'ghost', name: 'ghost', opening: '0.00', received: '70.00', paid: '0.00', debt: '-70.00' },
     ]);
   });
 
@@ -172,7 +172,7 @@ describe('SettlementsService', () => {
     const p = parsePeriod('2026-09-05', '2026-09-30', '2026-09-29');
 
     const { rows } = await svc.suppliers(p);
-    expect(rows.find((r) => r.sdId === '-')).toEqual({ sdId: '-', name: '-', received: '30.00', paid: '0.00', debt: '-30.00' });
+    expect(rows.find((r) => r.sdId === '-')).toEqual({ sdId: '-', name: '-', opening: '0.00', received: '30.00', paid: '0.00', debt: '-30.00' });
     const st = await svc.supplierStatement(p, '-');
     expect(st.rows.map((r) => r.sdId)).toEqual(['n']);
     expect(st.closing).toBe('30.00');

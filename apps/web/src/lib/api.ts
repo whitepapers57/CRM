@@ -111,7 +111,7 @@ export interface PurchaseList {
 }
 
 export interface SupplierList {
-  rows: Array<{ sdId: string; name: string; received: string; paid: string; debt: string }>;
+  rows: Array<{ sdId: string; name: string; opening: string; received: string; paid: string; debt: string }>;
 }
 
 export interface PurchaseDetail {

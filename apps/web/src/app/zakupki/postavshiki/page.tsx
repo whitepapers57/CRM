@@ -31,12 +31,14 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
   return (
     <>
       <StickyToolbar>{header}</StickyToolbar>
+      <Text variant="caption">{t("zakupki.debt_formula")}</Text>
       <Text variant="caption">{t("recon.cash_pending")}</Text>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t("zakupki.supplier")}</TableHead>
+              <TableHead className="text-right">{t("zakupki.opening")}</TableHead>
               <TableHead className="text-right">{t("zakupki.received")}</TableHead>
               <TableHead className="text-right">{t("zakupki.paid")}</TableHead>
               <TableHead className="text-right">{t("zakupki.debt")}</TableHead>
@@ -44,7 +46,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
           </TableHeader>
           <TableBody>
             {res.data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={4}><Text variant="caption">{t("common.empty")}</Text></TableCell></TableRow>
+              <TableRow><TableCell colSpan={5}><Text variant="caption">{t("common.empty")}</Text></TableCell></TableRow>
             )}
             {res.data.rows.map((r) => (
               <TableRow key={r.sdId} className="relative hover:bg-muted/50">
@@ -53,6 +55,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
                     {r.sdId === "-" ? t("zakupki.no_supplier") : r.name}
                   </Link>
                 </TableCell>
+                <TableCell className="text-right"><Money value={r.opening} /></TableCell>
                 <TableCell className="text-right"><Money value={r.received} /></TableCell>
                 <TableCell className="text-right"><Money value={r.paid} /></TableCell>
                 <TableCell className="text-right font-medium"><Money value={r.debt} /></TableCell>

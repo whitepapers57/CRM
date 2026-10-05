@@ -211,9 +211,13 @@ export class SettlementsService {
     const rows = [...ids].map((sdId) => {
       const r = bySupplier.get(sdId);
       const balance = new Prisma.Decimal(r?.balance ?? 0);
+      // 1C sign: we owe = negative. debt = opening − received + paid, so a debt with nothing
+      // received or paid in the period is all carried over from before it.
+      const opening = balance.minus(r?.received ?? 0);
       return {
         sdId,
         name: names.get(sdId) ?? sdId,
+        opening: opening.isZero() ? s(0) : s(opening.neg()),
         received: s(r?.received),
         paid: s(0),
         debt: balance.isZero() ? s(0) : s(balance.neg()),
