@@ -22,15 +22,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/", label: t("nav.reconciliation") },
     { href: "/outlets", label: t("nav.outlets") },
-    {
-      href: "/zakupki/nakladnye",
-      match: "/zakupki",
-      label: t("nav.purchases"),
-      children: [
-        { href: "/zakupki/nakladnye", label: t("nav.receipts") },
-        { href: "/zakupki/postavshiki", label: t("nav.suppliers") },
-      ],
-    },
+    // Закупки opens its 1C-style panel (/zakupki) since 5 Oct 2026; it used to list two pages here:
+    // children: [
+    //   { href: "/zakupki/nakladnye", label: t("nav.receipts") },
+    //   { href: "/zakupki/postavshiki", label: t("nav.suppliers") },
+    // ],
+    { href: "/zakupki", label: t("nav.purchases") },
     { href: "/warehouse", label: t("nav.warehouse") },
     { href: "/nomenklatura", label: t("nav.nomenclature") },
     { href: "/otchety", label: t("nav.reports") },
