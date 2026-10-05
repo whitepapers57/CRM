@@ -1,7 +1,6 @@
-import { PlaceholderPage } from "@/components/app/placeholder-page";
-import { getT } from "@/i18n/server";
+import { redirect } from "next/navigation";
 
-export default async function ReportsPage() {
-  const t = await getT();
-  return <PlaceholderPage title={t("nav.reports")} />;
+/** Moved under Закупки on 5 Oct 2026; old links still land on the page. */
+export default function Moved() {
+  redirect("/zakupki/otchety");
 }

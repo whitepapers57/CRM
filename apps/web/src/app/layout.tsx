@@ -29,8 +29,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     // ],
     { href: "/zakupki", label: t("nav.purchases") },
     { href: "/warehouse", label: t("nav.warehouse") },
-    { href: "/nomenklatura", label: t("nav.nomenclature") },
-    { href: "/otchety", label: t("nav.reports") },
+    // Номенклатура and Отчёты live inside Закупки since 5 Oct 2026:
+    // { href: "/nomenklatura", label: t("nav.nomenclature") },
+    // { href: "/otchety", label: t("nav.reports") },
     { href: "/settings/sync", label: t("nav.sync") },
     { href: "/settings/months", label: t("nav.months") },
   ];

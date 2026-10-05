@@ -12,56 +12,72 @@ export interface MenuGroup {
   links: MenuLink[];
 }
 
-/** The Закупки panel, laid out like 1C «Управление компанией»: three columns of groups. */
+/** The Закупки panel, laid out like 1C «Управление компанией»: three columns of groups. Only the owner's five pages (5 Oct 2026). */
 export const ZAKUPKI_MENU: MenuGroup[][] = [
   [
     {
       title: "nav.purchases",
       links: [
-        { label: "nav.suppliers", href: "/zakupki/postavshiki" },
-        { label: "zmenu.supplier_orders", slug: "zakazy" },
-        { label: "zmenu.invoices_received", slug: "scheta" },
         { label: "nav.receipts", href: "/zakupki/nakladnye" },
-        { label: "zmenu.tax_invoices_received", slug: "scheta-faktury" },
-        { label: "zmenu.extra_costs", slug: "dop-rashody" },
-        { label: "zmenu.powers_of_attorney", slug: "doverennosti" },
-        { label: "zmenu.receipt_corrections", slug: "korrektirovki-postupleniy" },
-      ],
-    },
-    {
-      title: "zmenu.supplier_settlements",
-      links: [
-        { label: "zmenu.reconciliations", slug: "sverki" },
-        { label: "zmenu.debt_corrections", slug: "korrektirovki-dolga" },
+        { label: "nav.receipt", href: "/zakupki/nakladnaya" },
+        { label: "nav.suppliers", href: "/zakupki/postavshiki" },
       ],
     },
   ],
-  [
-    {
-      title: "nav.warehouse",
-      links: [
-        { label: "zmenu.stock_transfers", slug: "peremeshcheniya" },
-        { label: "zmenu.cell_transfers", slug: "peremeshcheniya-yacheyki" },
-        { label: "zmenu.reservations", slug: "rezervirovaniya" },
-        { label: "zmenu.inventories", slug: "inventarizatsii" },
-        { label: "zmenu.warehouse_acts", slug: "skladskie-akty" },
-      ],
-    },
-    { title: "zmenu.goods_services", links: [{ label: "nav.nomenclature", href: "/nomenklatura" }] },
-    {
-      title: "zmenu.prices",
-      links: [
-        { label: "zmenu.price_lists", slug: "prays-listy" },
-        { label: "zmenu.price_types", slug: "vidy-tsen" },
-      ],
-    },
-    { title: "zmenu.planning", links: [{ label: "zmenu.needs", slug: "raschet-potrebnostey" }] },
-  ],
-  [
-    { title: "zmenu.analytics", links: [{ label: "nav.reports", href: "/otchety" }] },
-    { title: "zmenu.settings", links: [{ label: "zmenu.more", slug: "nastroyki" }] },
-  ],
+  [{ title: "zmenu.goods_services", links: [{ label: "nav.nomenclature", href: "/zakupki/nomenklatura" }] }],
+  [{ title: "zmenu.analytics", links: [{ label: "nav.reports", href: "/zakupki/otchety" }] }],
 ];
+
+// The full 1C panel (5 Oct 2026, first version) — the owner kept only the five pages above:
+// [
+//   [
+//     {
+//       title: "nav.purchases",
+//       links: [
+//         { label: "nav.suppliers", href: "/zakupki/postavshiki" },
+//         { label: "zmenu.supplier_orders", slug: "zakazy" },
+//         { label: "zmenu.invoices_received", slug: "scheta" },
+//         { label: "nav.receipts", href: "/zakupki/nakladnye" },
+//         { label: "zmenu.tax_invoices_received", slug: "scheta-faktury" },
+//         { label: "zmenu.extra_costs", slug: "dop-rashody" },
+//         { label: "zmenu.powers_of_attorney", slug: "doverennosti" },
+//         { label: "zmenu.receipt_corrections", slug: "korrektirovki-postupleniy" },
+//       ],
+//     },
+//     {
+//       title: "zmenu.supplier_settlements",
+//       links: [
+//         { label: "zmenu.reconciliations", slug: "sverki" },
+//         { label: "zmenu.debt_corrections", slug: "korrektirovki-dolga" },
+//       ],
+//     },
+//   ],
+//   [
+//     {
+//       title: "nav.warehouse",
+//       links: [
+//         { label: "zmenu.stock_transfers", slug: "peremeshcheniya" },
+//         { label: "zmenu.cell_transfers", slug: "peremeshcheniya-yacheyki" },
+//         { label: "zmenu.reservations", slug: "rezervirovaniya" },
+//         { label: "zmenu.inventories", slug: "inventarizatsii" },
+//         { label: "zmenu.warehouse_acts", slug: "skladskie-akty" },
+//       ],
+//     },
+//     { title: "zmenu.goods_services", links: [{ label: "nav.nomenclature", href: "/nomenklatura" }] },
+//     {
+//       title: "zmenu.prices",
+//       links: [
+//         { label: "zmenu.price_lists", slug: "prays-listy" },
+//         { label: "zmenu.price_types", slug: "vidy-tsen" },
+//       ],
+//     },
+//     { title: "zmenu.planning", links: [{ label: "zmenu.needs", slug: "raschet-potrebnostey" }] },
+//   ],
+//   [
+//     { title: "zmenu.analytics", links: [{ label: "nav.reports", href: "/otchety" }] },
+//     { title: "zmenu.settings", links: [{ label: "zmenu.more", slug: "nastroyki" }] },
+//   ],
+// ];
 
 export const zakupkiHref = (l: MenuLink) => l.href ?? `/zakupki/${l.slug}`;
 
