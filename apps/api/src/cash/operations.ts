@@ -26,7 +26,7 @@ export const OPERATIONS = {
 } as const satisfies Record<string, { direction: Direction; accounts: readonly Account[]; needs: Needs; bankTarget?: true }>;
 
 export type OpCode = keyof typeof OPERATIONS;
-export const isOp = (v: unknown): v is OpCode => typeof v === 'string' && v in OPERATIONS;
+export const isOp = (v: unknown): v is OpCode => typeof v === 'string' && Object.hasOwn(OPERATIONS, v);
 
 export type CashPage = 'cash-in' | 'cash-out' | 'bank-in' | 'bank-out';
 export const PAGES: Record<CashPage, { account: Account; direction: Direction }> = {
@@ -35,7 +35,7 @@ export const PAGES: Record<CashPage, { account: Account; direction: Direction }>
   'bank-in': { account: 'bank', direction: 'in' },
   'bank-out': { account: 'bank', direction: 'out' },
 };
-export const isPage = (v: unknown): v is CashPage => typeof v === 'string' && v in PAGES;
+export const isPage = (v: unknown): v is CashPage => typeof v === 'string' && Object.hasOwn(PAGES, v);
 
 /** The «Создать» menu of a page. */
 export const opsForPage = (page: CashPage): OpCode[] =>

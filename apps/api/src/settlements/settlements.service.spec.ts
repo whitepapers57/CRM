@@ -194,7 +194,7 @@ describe('SettlementsService', () => {
     const st = await svc.supplierStatement(p, '1');
     expect(st).toMatchObject({ opening: '700.00', received: '500.00', paid: '350.00', closing: '850.00' });
     expect(st.rows.map((r) => [r.kind, r.amount, r.balance])).toEqual([
-      ['purchase', '500.00', '1200.00'], ['payment', '400.00', '800.00'], ['payment', '-50.00', '850.00'],
+      ['purchase', '500.00', '1200.00'], ['payment', '-400.00', '800.00'], ['payment', '50.00', '850.00'],
     ]);
   });
 });

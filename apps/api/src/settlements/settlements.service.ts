@@ -224,7 +224,7 @@ export class SettlementsService {
         sdId: cashNumber(e.op.seq),
         date: e.op.date.toISOString(),
         warehouseName: null,
-        amount: s(amt),
+        amount: s(amt.neg()), // 2026-10-06: balance = previous + amount like every statement row; a payment lowers what we owe
         balance: s(balance),
       };
     });

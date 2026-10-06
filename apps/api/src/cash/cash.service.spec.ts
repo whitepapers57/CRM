@@ -4,7 +4,8 @@ import { AuditService } from '../audit/audit.service.js';
 import { MonthsService } from '../months/months.service.js';
 import { CashRefsService } from './cash-refs.service.js';
 import { CashService } from './cash.service.js';
-import { opsForPage } from './operations.js';
+import { isOp, isPage, opsForPage } from './operations.js';
+import { parsePeriod } from '../settlements/period.js';
 
 const db = createTestDb();
 const audit = new AuditService(db);
@@ -37,6 +38,22 @@ describe('CashService — create', () => {
     expect(opsForPage('cash-out')).toContain('cash_to_bank');
     expect(opsForPage('bank-out')).not.toContain('cash_to_bank');
     expect(opsForPage('bank-in')).toEqual(['from_buyer', 'supplier_refund', 'employee_loan_return', 'credit_received', 'other_income']);
+  });
+
+  it('rejects prototype keys as pages and operations', async () => {
+    expect(isPage('constructor')).toBe(false);
+    expect(isOp('toString')).toBe(false);
+    await expect(cash.create({ ...pay(), operation: 'toString' as never }, user)).rejects.toThrow('Неверная операция');
+  });
+
+  it('keeps a deactivated статья on its old operations (shown, listed, editable)', async () => {
+    const input = { operation: 'expense', account: 'cash', cashboxSdId: '1', date: '2026-10-03', amount: 500, categoryId: expenseCat } as const;
+    const { id } = await cash.create(input, user);
+    await refs.setCategoryActive(expenseCat, false);
+    expect(await cash.get(id)).toMatchObject({ party: 'Транспорт' });
+    const listed = await cash.list('cash-out', parsePeriod('2026-10-01', '2026-10-31', '2026-10-06'));
+    expect(listed.rows.map((r) => [r.id, r.party])).toContainEqual([id, 'Транспорт']);
+    await expect(cash.update(id, input, user)).resolves.not.toThrow();
   });
 
   it('creates a numbered supplier payment and records it', async () => {
