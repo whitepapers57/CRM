@@ -4,8 +4,7 @@ import { PrismaService } from '../database/prisma.service.js';
 export type Account = 'cash' | 'bank';
 const ACCOUNTS: Account[] = ['cash', 'bank'];
 const KINDS = ['expense', 'income'];
-// Root collation: Latin names first, then Cyrillic (the 'ru' locale would put Cyrillic first).
-const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'en');
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'ru');
 const clean = (name: string) => {
   const n = name?.trim();
   if (!n) throw new BadRequestException('Введите название');

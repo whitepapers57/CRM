@@ -25,8 +25,8 @@ describe('CashRefsService', () => {
     await refs.renameBankAccount(a.id, 'Ипотека банк (сум)');
     await refs.setBankAccountActive(a.id, false);
     expect(await refs.bankAccounts()).toEqual([
-      expect.objectContaining({ name: 'Asaka', active: true }),
       expect.objectContaining({ name: 'Ипотека банк (сум)', active: false }),
+      expect.objectContaining({ name: 'Asaka', active: true }),
     ]);
     await refs.addCategory('Транспорт', 'expense');
     await expect(refs.addCategory(' ', 'expense')).rejects.toThrow('Введите название');
@@ -37,7 +37,7 @@ describe('CashRefsService', () => {
 
   it('defaults payment types by name (only «Перечисление» to bank) and lets the owner change one', async () => {
     expect((await refs.paymentTypeAccounts()).map((p) => [p.name, p.account])).toEqual([
-      ['Click', 'cash'], ['Наличный', 'cash'], ['Перечисление', 'bank'], ['Терминал', 'cash'],
+      ['Наличный', 'cash'], ['Перечисление', 'bank'], ['Терминал', 'cash'], ['Click', 'cash'],
     ]);
     await refs.setPaymentTypeAccount('d0_4', 'bank');
     await expect(refs.setPaymentTypeAccount('d0_4', 'card')).rejects.toThrow('Неверный счёт');
