@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { SyncService } from '../sync/sync.service.js';
+import { cashNumber } from '../cash/operations.js';
 import type { Period } from './period.js';
 
 type Dec = Prisma.Decimal;
@@ -148,7 +149,7 @@ export class SettlementsService {
     };
   }
 
-  /** §4.2 goods side; supplier payments arrive with the cash-entries plan. */
+  /** §4.2: receipts plus supplier payments from the cash module (statement sign: we owe = positive). */
   async supplierStatement(p: Period, supplierSdId?: string) {
     // NO_SUPPLIER selects receipts Salesdoc sent without a supplier.
     const only =
@@ -172,21 +173,62 @@ export class SettlementsService {
     const warehouses = new Map(
       (await this.prisma.warehouse.findMany()).map((w) => [w.sdId, w.name]),
     );
-    let balance = new Prisma.Decimal(opening ?? 0);
+    // Supplier payments/refunds from the cash module (cancelled ones never count).
+    const supplierFilter =
+      supplierSdId === NO_SUPPLIER ? { supplierSdId: '__none__' } : supplierSdId ? { supplierSdId } : { supplierSdId: { not: null } };
+    const payOps = await this.prisma.cashOperation.findMany({
+      where: {
+        operation: { in: ['supplier_payment', 'supplier_refund'] },
+        cancelledAt: null,
+        date: { gte: new Date(`${p.windowStart}T00:00:00Z`), lt: p.toExclusive },
+        ...supplierFilter,
+      },
+      orderBy: [{ date: 'asc' }, { seq: 'asc' }],
+    });
+    const signed = (o: (typeof payOps)[number]) => (o.operation === 'supplier_refund' ? o.amount.neg() : o.amount);
+    const paidBefore = payOps.filter((o) => o.date < p.from).reduce((sum, o) => sum.plus(signed(o)), new Prisma.Decimal(0));
+    const paidIn = payOps.filter((o) => o.date >= p.from);
+
+    const openingBal = new Prisma.Decimal(opening ?? 0).minus(paidBefore);
+    let balance = openingBal;
     let received = new Prisma.Decimal(0);
-    const rows = purchases.map((pu) => {
-      balance = balance.plus(pu.total);
-      received = received.plus(pu.total);
+    let paid = new Prisma.Decimal(0);
+    // Timeline: by day, purchases before payments on the same day, payments by seq.
+    const day = (d: Date) => d.toISOString().slice(0, 10);
+    const timeline = [
+      ...purchases.map((pu) => ({ day: day(pu.date), order: 0, pu })),
+      ...paidIn.map((op) => ({ day: day(op.date), order: 1, op })),
+    ]
+      .map((e, i) => ({ e, i }))
+      .sort((x, y) => (x.e.day < y.e.day ? -1 : x.e.day > y.e.day ? 1 : x.e.order - y.e.order || x.i - y.i))
+      .map((x) => x.e);
+    const rows = timeline.map((e) => {
+      if ('pu' in e) {
+        const pu = e.pu;
+        balance = balance.plus(pu.total);
+        received = received.plus(pu.total);
+        return {
+          kind: 'purchase' as const,
+          sdId: pu.sdId,
+          date: pu.date.toISOString(),
+          warehouseName: pu.warehouseSdId ? (warehouses.get(pu.warehouseSdId) ?? null) : null,
+          amount: s(pu.total),
+          balance: s(balance),
+        };
+      }
+      const amt = signed(e.op);
+      balance = balance.minus(amt);
+      paid = paid.plus(amt);
       return {
-        kind: 'purchase' as const,
-        sdId: pu.sdId,
-        date: pu.date.toISOString(),
-        warehouseName: pu.warehouseSdId ? (warehouses.get(pu.warehouseSdId) ?? null) : null,
-        amount: s(pu.total),
+        kind: 'payment' as const,
+        sdId: cashNumber(e.op.seq),
+        date: e.op.date.toISOString(),
+        warehouseName: null,
+        amount: s(amt),
         balance: s(balance),
       };
     });
-    return { opening: s(opening), received: s(received), paid: s(0), closing: s(balance), rows };
+    return { opening: s(openingBal), received: s(received), paid: s(paid), closing: s(balance), rows };
   }
 
   /**
@@ -194,7 +236,7 @@ export class SettlementsService {
    * receipt). debt follows 1C «Долг (+ нам, − мы)»: what we owe is negative.
    */
   async suppliers(p: Period) {
-    const [listed, sums] = await Promise.all([
+    const [listed, sums, pays] = await Promise.all([
       this.prisma.supplier.findMany({ select: { sdId: true, name: true } }),
       this.prisma.$queryRaw<Array<{ supplier: string; received: Dec; balance: Dec }>>`
         SELECT COALESCE("supplierSdId", ${NO_SUPPLIER}) AS supplier,
@@ -204,23 +246,35 @@ export class SettlementsService {
         WHERE date >= ${p.windowStart}::timestamp AND date < ${p.toExclusiveDay}::timestamp
           AND "sdId" NOT IN (SELECT "purchaseSdId" FROM "PurchaseHidden")
         GROUP BY 1`,
+      this.prisma.$queryRaw<Array<{ supplier: string; paid: Dec; paidAll: Dec }>>`
+        SELECT "supplierSdId" AS supplier,
+          SUM(CASE WHEN date >= ${p.fromDay}::date THEN (CASE WHEN operation = 'supplier_refund' THEN -amount ELSE amount END) ELSE 0 END) AS paid,
+          SUM(CASE WHEN operation = 'supplier_refund' THEN -amount ELSE amount END) AS "paidAll"
+        FROM "CashOperation"
+        WHERE operation IN ('supplier_payment', 'supplier_refund') AND "cancelledAt" IS NULL AND "supplierSdId" IS NOT NULL
+          AND date >= ${p.windowStart}::date AND date < ${p.toExclusiveDay}::date
+        GROUP BY 1`,
     ]);
     const names = new Map(listed.map((x) => [x.sdId, x.name]));
     const bySupplier = new Map(sums.map((r) => [r.supplier, r]));
-    const ids = new Set([...names.keys(), ...bySupplier.keys()]);
+    const paidBy = new Map(pays.map((r) => [r.supplier, r]));
+    const ids = new Set([...names.keys(), ...bySupplier.keys(), ...paidBy.keys()]);
     const rows = [...ids].map((sdId) => {
       const r = bySupplier.get(sdId);
-      const balance = new Prisma.Decimal(r?.balance ?? 0);
-      // 1C sign: we owe = negative. debt = opening − received + paid, so a debt with nothing
-      // received or paid in the period is all carried over from before it.
-      const opening = balance.minus(r?.received ?? 0);
+      const pay = paidBy.get(sdId);
+      const paid = new Prisma.Decimal(pay?.paid ?? 0);
+      const paidAll = new Prisma.Decimal(pay?.paidAll ?? 0);
+      // 1C sign: we owe = negative. owed = receipts − payments; opening/debt are its negation.
+      const owedAll = new Prisma.Decimal(r?.balance ?? 0).minus(paidAll);
+      const owedBefore = new Prisma.Decimal(r?.balance ?? 0).minus(r?.received ?? 0).minus(paidAll.minus(paid));
+      const z = (v: Dec) => (v.isZero() ? s(0) : s(v.neg()));
       return {
         sdId,
         name: names.get(sdId) ?? sdId,
-        opening: opening.isZero() ? s(0) : s(opening.neg()),
+        opening: z(owedBefore),
         received: s(r?.received),
-        paid: s(0),
-        debt: balance.isZero() ? s(0) : s(balance.neg()),
+        paid: s(paid),
+        debt: z(owedAll),
       };
     });
     rows.sort((a, b) => a.name.localeCompare(b.name, 'ru'));

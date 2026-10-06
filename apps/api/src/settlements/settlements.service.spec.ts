@@ -177,4 +177,24 @@ describe('SettlementsService', () => {
     expect(st.rows.map((r) => r.sdId)).toEqual(['n']);
     expect(st.closing).toBe('30.00');
   });
+
+  it('counts supplier payments and refunds as paid, ignores cancelled payments', async () => {
+    for (const [sdId, day, total] of [['a', '2026-09-02', 1000], ['b', '2026-09-10', 500]] as const) {
+      await db.purchase.create({ data: { sdId, date: new Date(`${day}T09:00:00Z`), total, supplierSdId: '1', raw: {}, seenAt } });
+    }
+    const op = (date: string, amount: number, operation: string, cancelled = false) =>
+      db.cashOperation.create({ data: { direction: operation === 'supplier_refund' ? 'in' : 'out', account: 'cash', cashboxSdId: '1', date: new Date(date), amount, operation, supplierSdId: '1', createdById: 'u1', createdByName: 'x', ...(cancelled ? { cancelledAt: new Date() } : {}) } });
+    await op('2026-09-03', 300, 'supplier_payment'); // before the period: in the opening
+    await op('2026-09-12', 400, 'supplier_payment');
+    await op('2026-09-13', 50, 'supplier_refund');
+    await op('2026-09-14', 999, 'supplier_payment', true);
+    const p = parsePeriod('2026-09-05', '2026-09-30', '2026-09-29');
+    const { rows } = await svc.suppliers(p);
+    expect(rows.find((r) => r.sdId === '1')).toMatchObject({ opening: '-700.00', received: '500.00', paid: '350.00', debt: '-850.00' });
+    const st = await svc.supplierStatement(p, '1');
+    expect(st).toMatchObject({ opening: '700.00', received: '500.00', paid: '350.00', closing: '850.00' });
+    expect(st.rows.map((r) => [r.kind, r.amount, r.balance])).toEqual([
+      ['purchase', '500.00', '1200.00'], ['payment', '400.00', '800.00'], ['payment', '-50.00', '850.00'],
+    ]);
+  });
 });
