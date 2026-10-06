@@ -17,6 +17,7 @@ export function ProductPicker({
   placeholder,
   searchLabel,
   invalid,
+  emptyLabel,
 }: {
   value: string;
   onChange: (sdId: string) => void;
@@ -25,6 +26,8 @@ export function ProductPicker({
   placeholder: string;
   searchLabel: string;
   invalid?: boolean;
+  /** Shown in the list when nothing matches the search. */
+  emptyLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -73,6 +76,7 @@ export function ProductPicker({
               {p.name}
             </button>
           ))}
+          {matches.length === 0 && emptyLabel && <span className="px-2 py-1.5 text-sm text-muted-foreground">{emptyLabel}</span>}
         </div>
       </PopoverContent>
     </Popover>
