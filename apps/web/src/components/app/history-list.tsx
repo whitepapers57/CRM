@@ -1,7 +1,8 @@
+import Link from "next/link";
 import type { MessageKey } from "@/i18n/messages";
 import { getT } from "@/i18n/server";
 import type { AuditEntry } from "@/lib/api";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { monthLabel, tashkentInstant } from "@/lib/month-label";
 import { Text } from "./text";
 
@@ -27,12 +28,37 @@ function Lines({ s, names }: { s: Snapshot; names: Record<string, string> }) {
   );
 }
 
-/** Append-only history, newest first. `names` maps sdIds (warehouse, supplier, product) to names. */
-export async function HistoryList({ entries, names = {} }: { entries: AuditEntry[]; names?: Record<string, string> }) {
+type CashSnap = { date?: string; amount?: string; comment?: string | null };
+
+function CashSnapshot({ s }: { s: CashSnap }) {
+  return (
+    <ul className="ml-4 list-disc">
+      {s.date && <li>{formatDate(s.date)}</li>}
+      {s.amount != null && <li>{formatMoney(s.amount)}</li>}
+      {s.comment && <li>{s.comment}</li>}
+    </ul>
+  );
+}
+
+/**
+ * Append-only history, newest first. `names` maps sdIds (warehouse, supplier, product) to names.
+ * `linkFor` maps an entry's target to a page («Открыть»); `bare` drops the heading (a dialog has its own).
+ */
+export async function HistoryList({
+  entries,
+  names = {},
+  linkFor,
+  bare = false,
+}: {
+  entries: AuditEntry[];
+  names?: Record<string, string>;
+  linkFor?: Record<string, string>;
+  bare?: boolean;
+}) {
   const t = await getT();
   return (
     <section className="flex flex-col gap-2">
-      <Text as="h2" variant="subtitle">{t("history.title")}</Text>
+      {!bare && <Text as="h2" variant="subtitle">{t("history.title")}</Text>}
       {entries.length === 0 ? (
         <Text variant="caption">{t("history.empty")}</Text>
       ) : (
@@ -44,8 +70,28 @@ export async function HistoryList({ entries, names = {} }: { entries: AuditEntry
                 <span className="font-medium">{e.userName}</span>
                 <span>{t(`history.action.${e.action}` as MessageKey)}</span>
                 {e.action.startsWith("month.") && <span>{monthLabel(e.target, t)}</span>}
+                {linkFor?.[e.target] && (
+                  <Link href={linkFor[e.target]} className="text-xs underline-offset-4 hover:underline">{t("history.open_document")}</Link>
+                )}
               </div>
               {e.reason && <Text variant="caption">{e.reason}</Text>}
+              {e.action === "cash.edit" && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">
+                    {t("history.before")} → {t("history.after")}
+                  </summary>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Text variant="caption">{t("history.before")}</Text>
+                      <CashSnapshot s={(e.before ?? {}) as CashSnap} />
+                    </div>
+                    <div>
+                      <Text variant="caption">{t("history.after")}</Text>
+                      <CashSnapshot s={(e.after ?? {}) as CashSnap} />
+                    </div>
+                  </div>
+                </details>
+              )}
               {e.action === "purchase.edit" && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">

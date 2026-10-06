@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { HistoryButton } from "@/components/app/history-button";
+import { HistoryList } from "@/components/app/history-list";
 import { ApiError } from "@/components/app/api-error";
 import { CheckboxField } from "@/components/app/checkbox-field";
 import { Money } from "@/components/app/money-cell";
@@ -11,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getT } from "@/i18n/server";
-import { apiGet, qs, type MonthRow, type PurchaseList } from "@/lib/api";
+import { apiGet, qs, type AuditEntry, type MonthRow, type PurchaseList } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
@@ -24,11 +26,22 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const q = { from: get("from"), to: get("to"), supplier: get("supplier"), warehouse: get("warehouse"), search: get("search"), includeHidden: get("includeHidden") };
   const locale = await getLocale();
-  const [res, months] = await Promise.all([apiGet<PurchaseList>(`/warehouse/purchases${qs(q)}`), apiGet<MonthRow[]>("/months")]);
+  const [res, months, history] = await Promise.all([
+    apiGet<PurchaseList>(`/warehouse/purchases${qs(q)}`),
+    apiGet<MonthRow[]>("/months"),
+    apiGet<AuditEntry[]>("/audit?actionPrefix=purchase."),
+  ]);
+  const entries = history.ok ? history.data : [];
+  const linkFor = Object.fromEntries(entries.map((e) => [e.target, `/zakupki/nakladnye/${encodeURIComponent(e.target)}`]));
   const closed = new Set(months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []);
   const header = (
     <PageHeader title={t("nav.receipts")}>
-      <PagePeriod from={q.from} to={q.to} />
+      <div className="flex flex-wrap items-center gap-2">
+        <HistoryButton label={t("history.open")}>
+          <HistoryList bare entries={entries} linkFor={linkFor} />
+        </HistoryButton>
+        <PagePeriod from={q.from} to={q.to} />
+      </div>
     </PageHeader>
   );
   if (!res.ok) {

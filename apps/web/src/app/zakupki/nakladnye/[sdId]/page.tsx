@@ -1,4 +1,5 @@
 import { ApiError } from "@/components/app/api-error";
+import { HistoryButton } from "@/components/app/history-button";
 import { HistoryList } from "@/components/app/history-list";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
@@ -46,7 +47,12 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
     <>
       <StickyToolbar>
         <PageHeader title={t("zakupki.receipt_title", { number: p.sdId, date: formatDate(p.date) })}>
-          <ReceiptActions sdId={p.sdId} monthOpen={p.monthOpen} hidden={!!p.hidden} locale={locale} />
+          <div className="flex flex-wrap items-center gap-2">
+            <HistoryButton label={t("history.open")}>
+              <HistoryList bare entries={history.ok ? history.data : []} names={names} />
+            </HistoryButton>
+            <ReceiptActions sdId={p.sdId} monthOpen={p.monthOpen} hidden={!!p.hidden} locale={locale} />
+          </div>
         </PageHeader>
       </StickyToolbar>
       {p.hidden && (
@@ -91,7 +97,8 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
           </TableBody>
         </Table>
       </div>
-      <HistoryList entries={history.ok ? history.data : []} names={names} />
+      {/* 2026-10-06: the inline history moved into the «История» dialog in the header.
+      <HistoryList entries={history.ok ? history.data : []} names={names} /> */}
     </>
   );
 }

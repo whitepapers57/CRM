@@ -1,4 +1,5 @@
 import { ApiError } from "@/components/app/api-error";
+import { HistoryButton } from "@/components/app/history-button";
 import { HistoryList } from "@/components/app/history-list";
 import { PageHeader } from "@/components/app/page-header";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
@@ -15,7 +16,11 @@ export default async function MonthsPage() {
   const [months, history] = await Promise.all([apiGet<MonthRow[]>("/months"), apiGet<AuditEntry[]>("/months/history")]);
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("nav.months")} />
+      <PageHeader title={t("nav.months")}>
+        <HistoryButton label={t("history.open")}>
+          <HistoryList bare entries={history.ok ? history.data : []} />
+        </HistoryButton>
+      </PageHeader>
     </StickyToolbar>
   );
   if (!months.ok)
@@ -74,7 +79,8 @@ export default async function MonthsPage() {
           </TableBody>
         </Table>
       </div>
-      <HistoryList entries={history.ok ? history.data : []} />
+      {/* 2026-10-06: the inline history moved into the «История» dialog in the header.
+      <HistoryList entries={history.ok ? history.data : []} /> */}
     </>
   );
 }
