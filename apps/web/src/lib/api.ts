@@ -193,3 +193,43 @@ export interface SalesOrder {
   total: string;
   lines: Array<{ productSdId: string | null; productName: string; quantity: string; price: string; discount: string; amount: string; returned: string }>;
 }
+
+export type CashPage = "cash-in" | "cash-out" | "bank-in" | "bank-out";
+export interface CashRow {
+  id: string;
+  number: string;
+  source: "app" | "salesdoc";
+  operation: string;
+  direction: "in" | "out";
+  account: "cash" | "bank";
+  date: string;
+  amount: string;
+  cashboxSdId: string | null;
+  cashboxName: string | null;
+  bankAccountId: string | null;
+  bankAccountName: string | null;
+  supplierSdId: string | null;
+  supplierName: string | null;
+  outletSdId: string | null;
+  categoryId: string | null;
+  counterpartyName: string | null;
+  party: string | null;
+  comment: string | null;
+  createdByName: string;
+  cancelled: { by: string; at: string; reason: string } | null;
+  mirrored?: true;
+}
+export interface CashList {
+  total: string;
+  rows: CashRow[];
+  filters: { operations: string[]; boxes: Array<{ id: string; name: string }> };
+}
+export type CashOperationDetail = CashRow & { monthOpen: boolean };
+export interface CashFormOptions {
+  cashboxes: Array<{ id: string; name: string }>;
+  bankAccounts: Array<{ id: string; name: string }>;
+  suppliers: Array<{ id: string; name: string }>;
+  outlets: Array<{ id: string; name: string }>;
+  expenseCategories: Array<{ id: string; name: string }>;
+  incomeCategories: Array<{ id: string; name: string }>;
+}

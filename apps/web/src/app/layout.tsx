@@ -30,6 +30,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     //   { href: "/zakupki/postavshiki", label: t("nav.suppliers") },
     // ],
     { href: "/zakupki", label: t("nav.purchases") },
+    { href: "/dengi", label: t("nav.money") },
     { href: "/warehouse", label: t("nav.warehouse") },
     // Номенклатура and Отчёты live inside Закупки since 5 Oct 2026:
     // { href: "/nomenklatura", label: t("nav.nomenclature") },
