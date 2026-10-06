@@ -34,6 +34,7 @@ const withBody = (method: string) => <T>(path: string, body?: unknown) =>
   request<T>(path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 export const apiPost = withBody("POST");
 export const apiPut = withBody("PUT");
+export const apiPatch = withBody("PATCH");
 export const apiDelete = withBody("DELETE");
 
 

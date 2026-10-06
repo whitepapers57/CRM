@@ -25,7 +25,9 @@ import { CreateMenu } from "../create-menu";
 
 const PAGES: CashPage[] = ["cash-in", "cash-out", "bank-in", "bank-out"];
 // Panel links whose pages come later.
-const LATER: Record<string, MessageKey> = { stati: "money.categories", scheta: "money.accounts" };
+// 6 Oct 2026: stati and scheta now have their own pages (Task 9); old entry kept:
+// const LATER: Record<string, MessageKey> = { stati: "money.categories", scheta: "money.accounts" };
+const LATER: Record<string, MessageKey> = {};
 
 export default async function CashListPage({ params, searchParams }: PageProps<"/dengi/[page]">) {
   const { page } = await params;
