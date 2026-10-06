@@ -12,14 +12,15 @@ export interface MenuGroup {
   links: MenuLink[];
 }
 
-/** The Закупки panel, laid out like 1C «Управление компанией»: three columns of groups. Only the owner's five pages (5 Oct 2026). */
+/** The Закупки panel, laid out like 1C «Управление компанией»: three columns of groups. Only the owner's pages (5–6 Oct 2026). */
 export const ZAKUPKI_MENU: MenuGroup[][] = [
   [
     {
       title: "nav.purchases",
       links: [
         { label: "nav.receipts", href: "/zakupki/nakladnye" },
-        { label: "nav.receipt", href: "/zakupki/nakladnaya" },
+        // «Накладная» (newest receipt) removed from the panel on 6 Oct 2026; a receipt opens from the list:
+        // { label: "nav.receipt", href: "/zakupki/nakladnaya" },
         { label: "nav.suppliers", href: "/zakupki/postavshiki" },
       ],
     },
