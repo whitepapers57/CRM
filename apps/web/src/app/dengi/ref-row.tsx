@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Field } from "@/components/app/field";
 import { Select } from "@/components/app/select";
 import { Text } from "@/components/app/text";
@@ -20,19 +20,25 @@ export function RefRow({ kind, id, name, active, locale }: { kind: Kind; id: str
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [saving, startSave] = useTransition();
+  const busy = useRef(false);
   const [toggling, startToggle] = useTransition();
 
   const save = () => {
-    if (saving) return;
+    if (busy.current) return;
     if (!draft.trim()) {
       setError(t("errors.required"));
       return;
     }
+    busy.current = true;
     startSave(async () => {
-      setError(null);
-      const r = await patchRef(kind, id, { name: draft.trim() });
-      if (r.ok) setEditing(false);
-      else setError(r.message || t("errors.unknown"));
+      try {
+        setError(null);
+        const r = await patchRef(kind, id, { name: draft.trim() });
+        if (r.ok) setEditing(false);
+        else setError(r.message || t("errors.unknown"));
+      } finally {
+        busy.current = false;
+      }
     });
   };
   const toggle = () =>
@@ -103,17 +109,23 @@ export function AddRef({ kind, categoryKind, locale }: { kind: Kind; categoryKin
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const busy = useRef(false);
   const add = () => {
-    if (pending) return;
+    if (busy.current) return;
     if (!name.trim()) {
       setError(t("errors.required"));
       return;
     }
+    busy.current = true;
     start(async () => {
-      setError(null);
-      const r = await addRef(kind, { name: name.trim(), ...(categoryKind ? { kind: categoryKind } : {}) });
-      if (r.ok) setName("");
-      else setError(r.message || t("errors.unknown"));
+      try {
+        setError(null);
+        const r = await addRef(kind, { name: name.trim(), ...(categoryKind ? { kind: categoryKind } : {}) });
+        if (r.ok) setName("");
+        else setError(r.message || t("errors.unknown"));
+      } finally {
+        busy.current = false;
+      }
     });
   };
   return (
