@@ -42,7 +42,7 @@ function CashSnapshot({ s }: { s: CashSnap }) {
 
 /**
  * Append-only history, newest first. `names` maps sdIds (warehouse, supplier, product) to names.
- * `linkFor` maps an entry's target to a page («Открыть»); `bare` drops the heading (a dialog has its own).
+ * `linkFor` maps an entry's target to a link (href + visible label, e.g. «№ d0_432»); `bare` drops the heading (a dialog has its own).
  */
 export async function HistoryList({
   entries,
@@ -52,7 +52,7 @@ export async function HistoryList({
 }: {
   entries: AuditEntry[];
   names?: Record<string, string>;
-  linkFor?: Record<string, string>;
+  linkFor?: Record<string, { href: string; label: string }>;
   bare?: boolean;
 }) {
   const t = await getT();
@@ -71,7 +71,7 @@ export async function HistoryList({
                 <span>{t(`history.action.${e.action}` as MessageKey)}</span>
                 {e.action.startsWith("month.") && <span>{monthLabel(e.target, t)}</span>}
                 {linkFor?.[e.target] && (
-                  <Link href={linkFor[e.target]} className="text-xs underline-offset-4 hover:underline">{t("history.open_document")}</Link>
+                  <Link href={linkFor[e.target].href} className="text-xs underline-offset-4 hover:underline">{linkFor[e.target].label}</Link>
                 )}
               </div>
               {e.reason && <Text variant="caption">{e.reason}</Text>}

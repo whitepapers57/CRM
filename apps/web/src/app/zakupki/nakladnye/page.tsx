@@ -32,7 +32,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
     apiGet<AuditEntry[]>("/audit?actionPrefix=purchase."),
   ]);
   const entries = history.ok ? history.data : [];
-  const linkFor = Object.fromEntries(entries.map((e) => [e.target, `/zakupki/nakladnye/${encodeURIComponent(e.target)}`]));
+  const linkFor = Object.fromEntries(entries.map((e) => [e.target, { href: `/zakupki/nakladnye/${encodeURIComponent(e.target)}`, label: t("history.document", { number: e.target }) }]));
   const closed = new Set(months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []);
   const header = (
     <PageHeader title={t("nav.receipts")}>
