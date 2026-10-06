@@ -23,6 +23,7 @@ export function RefRow({ kind, id, name, active, locale }: { kind: Kind; id: str
   const [toggling, startToggle] = useTransition();
 
   const save = () => {
+    if (saving) return;
     if (!draft.trim()) {
       setError(t("errors.required"));
       return;
@@ -103,6 +104,7 @@ export function AddRef({ kind, categoryKind, locale }: { kind: Kind; categoryKin
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const add = () => {
+    if (pending) return;
     if (!name.trim()) {
       setError(t("errors.required"));
       return;
