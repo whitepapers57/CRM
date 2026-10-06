@@ -1,9 +1,35 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, NotFoundException, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { CurrentUser } from '../auth/auth.guard.js';
+import type { AuthUser } from '../auth/auth.service.js';
+import { parsePeriod } from '../settlements/period.js';
 import { CashRefsService } from './cash-refs.service.js';
+import { CashService, type CashInput } from './cash.service.js';
+import { isPage } from './operations.js';
 
 @Controller('cash')
 export class CashController {
-  constructor(private readonly refs: CashRefsService) {}
+  constructor(
+    private readonly refs: CashRefsService,
+    private readonly cash: CashService,
+  ) {}
+
+  private page(page: string) {
+    if (!isPage(page)) throw new NotFoundException('Страница не найдена');
+    return page;
+  }
+
+  @Get('pages/:page')
+  list(@Param('page') page: string, @Query('from') from?: string, @Query('to') to?: string, @Query('operation') operation?: string, @Query('box') box?: string, @Query('search') search?: string, @Query('includeCancelled') includeCancelled?: string) {
+    return this.cash.list(this.page(page), parsePeriod(from, to), { operation: operation || undefined, box: box || undefined, search: search?.trim() || undefined, includeCancelled: includeCancelled === 'true' });
+  }
+  @Get('pages/:page/history') pageHistory(@Param('page') page: string) { return this.cash.history(this.page(page)); }
+  @Get('form-options') formOptions() { return this.cash.formOptions(); }
+  @Get('operations/:id') get(@Param('id') id: string) { return this.cash.get(id); }
+  @Get('operations/:id/history') opHistory(@Param('id') id: string) { return this.cash.historyOf(id); }
+  @Post('operations') create(@Body() b: CashInput, @CurrentUser() user: AuthUser) { return this.cash.create(b ?? ({} as CashInput), user); }
+  @Put('operations/:id') @HttpCode(204) update(@Param('id') id: string, @Body() b: CashInput, @CurrentUser() user: AuthUser) { return this.cash.update(id, b ?? ({} as CashInput), user); }
+  @Post('operations/:id/cancel') @HttpCode(204) cancel(@Param('id') id: string, @Body() b: { reason?: string }, @CurrentUser() user: AuthUser) { return this.cash.cancel(id, b?.reason ?? '', user); }
+  @Post('operations/:id/restore') @HttpCode(204) restore(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.cash.restore(id, user); }
 
   @Get('bank-accounts') bankAccounts() { return this.refs.bankAccounts(); }
   @Post('bank-accounts') addBankAccount(@Body() b: { name?: string }) { return this.refs.addBankAccount(b?.name ?? ''); }

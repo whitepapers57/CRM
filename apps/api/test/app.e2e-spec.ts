@@ -27,7 +27,7 @@ describe('API (e2e)', () => {
   });
 
   it('refuses protected routes without a session', async () => {
-    for (const path of ['/salesdoc/status', '/sync/status', '/reconciliation/summary', '/sales/orders', '/cash/categories', '/auth/me']) {
+    for (const path of ['/salesdoc/status', '/sync/status', '/reconciliation/summary', '/sales/orders', '/cash/categories', '/cash/pages/cash-in', '/audit?actionPrefix=cash.', '/auth/me']) {
       await request(app.getHttpServer()).get(path).expect(401);
     }
   });

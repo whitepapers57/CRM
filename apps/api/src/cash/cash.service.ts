@@ -7,7 +7,8 @@ import { MonthsService, monthOf } from '../months/months.service.js';
 import { tashkentDay } from '../sync/salesdoc-date.js';
 import { DATA_START } from '../sync/window.js';
 import { CashRefsService, type Account } from './cash-refs.service.js';
-import { OPERATIONS, cashNumber, isOp, type OpCode } from './operations.js';
+import type { Period } from '../settlements/period.js';
+import { OPERATIONS, PAGES, cashNumber, isOp, opsForPage, type CashPage, type OpCode } from './operations.js';
 
 export interface CashInput {
   operation: OpCode;
@@ -197,6 +198,107 @@ export class CashService {
     const names = await this.names([o]);
     const month = await this.prisma.month.findUnique({ where: { month: monthOf(o.date) } });
     return { ...this.view(o, names), monthOpen: !month?.closed };
+  }
+
+  private async pageRows(page: CashPage, where: Prisma.CashOperationWhereInput) {
+    const { account, direction } = PAGES[page];
+    // A cash-to-bank deposit is also an incoming on the receiving bank account.
+    const mirror = page === 'bank-in' ? [{ operation: 'cash_to_bank', ...where }] : [];
+    return this.prisma.cashOperation.findMany({
+      where: { OR: [{ account, direction, ...where }, ...mirror] },
+      orderBy: [{ date: 'desc' }, { seq: 'desc' }],
+    });
+  }
+
+  async list(page: CashPage, p: Period, q: { operation?: string; box?: string; search?: string; includeCancelled?: boolean } = {}) {
+    const { account, direction } = PAGES[page];
+    const ops = await this.pageRows(page, {
+      date: { gte: p.from, lt: p.toExclusive },
+      ...(q.includeCancelled ? {} : { cancelledAt: null }),
+    });
+    const n = await this.names(ops);
+    let rows: Array<ReturnType<CashService['view']> & { mirrored?: true }> = ops.map((o) => ({
+      ...this.view(o, n),
+      ...(page === 'bank-in' && o.operation === 'cash_to_bank' ? { mirrored: true as const } : {}),
+    }));
+
+    if (direction === 'in' && (!q.operation || q.operation === 'from_buyer')) {
+      const accountOf = await this.refs.accountOfPaymentType();
+      const payments = await this.prisma.payment.findMany({
+        where: { transactionType: 3, paymentDate: { gte: p.from, lt: p.toExclusive } },
+        orderBy: [{ paymentDate: 'desc' }, { sdId: 'desc' }],
+      });
+      const mine = payments.filter((x) => (accountOf.get(x.paymentTypeSdId ?? '') ?? 'cash') === account);
+      const outlets = new Map((await this.prisma.outlet.findMany({ where: { sdId: { in: mine.map((x) => x.outletSdId).filter((v): v is string => !!v) } }, select: { sdId: true, name: true } })).map((x) => [x.sdId, x.name]));
+      const boxes = new Map((await this.prisma.cashbox.findMany({ select: { sdId: true, name: true } })).map((x) => [x.sdId, x.name]));
+      rows = rows.concat(
+        mine.map((x) => ({
+          id: `sd:${x.sdId}`,
+          number: x.sdId,
+          source: 'salesdoc' as const,
+          operation: 'from_buyer',
+          direction: 'in',
+          account,
+          date: x.paymentDate.toISOString().slice(0, 10),
+          amount: s2(x.amount),
+          cashboxSdId: x.cashboxSdId,
+          cashboxName: x.cashboxSdId ? (boxes.get(x.cashboxSdId) ?? x.cashboxSdId) : null,
+          bankAccountId: null,
+          bankAccountName: null,
+          supplierSdId: null,
+          supplierName: null,
+          outletSdId: x.outletSdId,
+          categoryId: null,
+          counterpartyName: null,
+          party: x.outletSdId ? (outlets.get(x.outletSdId) ?? x.outletSdId) : null,
+          comment: x.comment,
+          createdByName: '',
+          cancelled: null,
+        })),
+      );
+    }
+
+    const needle = q.search?.trim().toLowerCase();
+    rows = rows
+      .filter((r) => !q.operation || r.operation === q.operation)
+      .filter((r) => !q.box || r.cashboxSdId === q.box || r.bankAccountId === q.box)
+      .filter((r) => !needle || [r.number, r.party, r.comment].some((v) => v?.toLowerCase().includes(needle)))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number));
+    const total = rows.filter((r) => !r.cancelled).reduce((s, r) => s.plus(r.amount), new Prisma.Decimal(0));
+    const boxes =
+      account === 'cash'
+        ? (await this.prisma.cashbox.findMany({ select: { sdId: true, name: true } })).map((b) => ({ id: b.sdId, name: b.name }))
+        : (await this.refs.bankAccounts()).map((b) => ({ id: b.id, name: b.name }));
+    return { total: s2(total), rows, filters: { operations: opsForPage(page), boxes } };
+  }
+
+  async history(page: CashPage) {
+    const ids = (await this.pageRows(page, {})).map((o) => o.id);
+    return this.audit.list({ actionPrefix: 'cash.', targets: ids });
+  }
+
+  historyOf(id: string) {
+    return this.audit.list({ target: id });
+  }
+
+  async formOptions() {
+    const pick = { select: { sdId: true, name: true } } as const;
+    const [boxes, suppliers, outlets, banks, cats] = await Promise.all([
+      this.prisma.cashbox.findMany(pick),
+      this.prisma.supplier.findMany(pick),
+      this.prisma.outlet.findMany({ ...pick, where: { active: true } }),
+      this.refs.bankAccounts(),
+      this.refs.categories(),
+    ]);
+    const idName = (xs: Array<{ sdId: string; name: string }>) => xs.map((x) => ({ id: x.sdId, name: x.name })).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    return {
+      cashboxes: idName(boxes),
+      bankAccounts: banks.filter((b) => b.active).map((b) => ({ id: b.id, name: b.name })),
+      suppliers: idName(suppliers),
+      outlets: idName(outlets),
+      expenseCategories: cats.filter((c) => c.active && c.kind === 'expense').map((c) => ({ id: c.id, name: c.name })),
+      incomeCategories: cats.filter((c) => c.active && c.kind === 'income').map((c) => ({ id: c.id, name: c.name })),
+    };
   }
 
   /** Display names for a batch of operations. */
