@@ -29,6 +29,21 @@ const isDay = (v: string) => DAY.test(v) && new Date(`${v}T00:00:00Z`).toISOStri
 const s2 = (v: Prisma.Decimal) => v.toFixed(2);
 const blank = (v?: string | null) => (v?.trim() ? v.trim() : null);
 
+const MAX_AMOUNT = new Prisma.Decimal('1e16');
+const PLAIN_NUMBER = /^\d+(\.\d+)?$/;
+/** A finite number, or a plain decimal string; anything else counts as zero (rejected by the caller). */
+function parseAmount(v: unknown): Prisma.Decimal {
+  if (typeof v === 'number' && Number.isFinite(v)) return new Prisma.Decimal(v);
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (PLAIN_NUMBER.test(t)) return new Prisma.Decimal(t);
+    const n = Number(t);
+    // «1e17» is not a plain number, but say "too big" rather than "zero".
+    if (t && Number.isFinite(n) && n >= 1e16) return new Prisma.Decimal(n);
+  }
+  return new Prisma.Decimal(0);
+}
+
 type Row = Prisma.CashOperationGetPayload<object>;
 const snapshot = (o: Pick<Row, 'date' | 'amount' | 'account' | 'cashboxSdId' | 'bankAccountId' | 'supplierSdId' | 'outletSdId' | 'categoryId' | 'counterpartyName' | 'comment'>) => ({
   date: o.date.toISOString().slice(0, 10),
@@ -61,7 +76,8 @@ export class CashService {
     if (!isDay(input.date ?? '')) throw new BadRequestException('Неверная дата');
     if (input.date < DATA_START) throw new BadRequestException('Дата раньше 01.09.2026');
     if (input.date > tashkentDay(new Date())) throw new BadRequestException('Дата в будущем');
-    const amount = new Prisma.Decimal(Number.isFinite(Number(input.amount)) ? String(input.amount) : '0');
+    const amount = parseAmount(input.amount);
+    if (amount.gte(MAX_AMOUNT)) throw new BadRequestException('Сумма слишком большая');
     if (!amount.gt(0)) throw new BadRequestException('Сумма должна быть больше нуля');
     if (amount.decimalPlaces() > 2) throw new BadRequestException('Сумма: не больше 2 знаков после запятой');
 

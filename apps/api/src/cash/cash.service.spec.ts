@@ -75,6 +75,17 @@ describe('CashService — create', () => {
     await expect(cash.create({ ...pay(), amount: '1.234' }, user)).rejects.toThrow('Сумма: не больше 2 знаков после запятой');
   });
 
+  it('parses the amount strictly', async () => {
+    const { id } = await cash.create({ ...pay(), amount: ' 12 ' }, user);
+    expect(await cash.get(id)).toMatchObject({ amount: '12.00' });
+    for (const bad of ['0x10', true, 'abc', -5, '', '1,5']) {
+      await expect(cash.create({ ...pay(), amount: bad as never }, user)).rejects.toThrow('Сумма должна быть больше нуля');
+    }
+    for (const big of ['1e17', 1e16, '10000000000000000']) {
+      await expect(cash.create({ ...pay(), amount: big }, user)).rejects.toThrow('Сумма слишком большая');
+    }
+  });
+
   it('refuses a closed month', async () => {
     await months.setClosed('2026-09', true, user);
     await expect(cash.create({ ...pay(), date: '2026-09-30' }, user)).rejects.toThrow('Месяц закрыт');
@@ -87,8 +98,8 @@ describe('CashService — edit, cancel, restore', () => {
     await cash.update(id, { ...pay(), amount: 12000000, comment: 'исправлено' }, user);
     expect(await cash.get(id)).toMatchObject({ amount: '12000000.00', comment: 'исправлено' });
     await expect(cash.update(id, { ...pay(), operation: 'expense', categoryId: expenseCat }, user)).rejects.toThrow('Вид операции не меняется');
-    const [edit] = await audit.list({ target: id });
-    expect(edit).toMatchObject({ action: 'cash.edit' });
+    const edit = (await audit.list({ target: id })).find((e) => e.action === 'cash.edit')!;
+    expect(edit).toBeDefined();
     expect(edit.before).toMatchObject({ amount: '10500000.00' });
     expect(edit.after).toMatchObject({ amount: '12000000.00' });
   });
