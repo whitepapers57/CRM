@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { getLocale, getT } from "@/i18n/server";
 import type { MessageKey } from "@/i18n/messages";
-import { apiGet, type CashFormOptions, type CashList, type CashPage, type MonthRow } from "@/lib/api";
+import { apiGet, type CashFormOptions, type CashPage, type MonthRow } from "@/lib/api";
+import { OPS_FOR_PAGE } from "@/lib/cash-ops";
 import { tashkentToday } from "@/lib/today";
 import { CashForm } from "../../cash-form";
 
@@ -18,13 +19,14 @@ export default async function NewCashOperationPage({ searchParams }: PageProps<"
   const operation = typeof sp.operation === "string" ? sp.operation : "";
   if (!PAGES.includes(page as CashPage)) notFound();
   const cashPage = page as CashPage;
-  const [list, opts, months] = await Promise.all([
-    apiGet<CashList>(`/cash/pages/${cashPage}`),
+  // 6 Oct 2026: validated against the whole page list (thousands of rows); now from OPS_FOR_PAGE.
+  // const list = await apiGet<CashList>(`/cash/pages/${cashPage}`); ... if (list.ok && !list.data.filters.operations.includes(operation)) notFound();
+  if (!OPS_FOR_PAGE[cashPage].includes(operation)) notFound();
+  const [opts, months] = await Promise.all([
     apiGet<CashFormOptions>("/cash/form-options"),
     apiGet<MonthRow[]>("/months"),
   ]);
-  if (list.ok && !list.data.filters.operations.includes(operation)) notFound();
-  const fail = !list.ok ? list : !opts.ok ? opts : null;
+  const fail = !opts.ok ? opts : null;
   const header = (
     <StickyToolbar>
       <PageHeader title={t("money.new_title", { operation: t(`money.op.${operation}` as MessageKey) })} />

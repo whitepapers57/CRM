@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { PagePeriod } from "@/components/app/page-period";
 import { StatementTable } from "@/components/app/statement-table";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
-import { Text } from "@/components/app/text";
+// import { Text } from "@/components/app/text"; // 6 Oct 2026: unused since the stale caption was retired
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type SupplierList, type SupplierStatement } from "@/lib/api";
 import { toDebtSign } from "@/lib/debt-sign";
@@ -37,7 +37,8 @@ export default async function SupplierStatementPage({ params, searchParams }: Pa
   return (
     <>
       <StickyToolbar>{header}</StickyToolbar>
-      <Text variant="caption">{t("recon.cash_pending")}</Text>
+      {/* 6 Oct 2026: Оплачено is real now (cash module); caption retired, key kept.
+      <Text variant="caption">{t("recon.cash_pending")}</Text> */}
       <StatementTable
         opening={st.opening}
         closing={st.closing}

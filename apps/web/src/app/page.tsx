@@ -70,7 +70,8 @@ export default async function Reconciliation({ searchParams }: PageProps<"/">) {
           <CardContent>
             <Row label={t("recon.paid")} value={s.outlets.paid} />
             <Row label={t("recon.supplier_paid")} value={s.supplier.paid} />
-            <Text variant="caption" className="pt-2">{t("recon.cash_pending")}</Text>
+            {/* 6 Oct 2026: supplier payments are real now (cash module); caption retired, key kept.
+            <Text variant="caption" className="pt-2">{t("recon.cash_pending")}</Text> */}
           </CardContent>
         </Card>
       </div>

@@ -3,6 +3,7 @@ import type { MessageKey } from "@/i18n/messages";
 import { getT } from "@/i18n/server";
 import type { AuditEntry } from "@/lib/api";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { changedCashFields, type CashSnapField } from "@/lib/cash-ops";
 import { monthLabel, tashkentInstant } from "@/lib/month-label";
 import { Text } from "./text";
 
@@ -28,14 +29,32 @@ function Lines({ s, names }: { s: Snapshot; names: Record<string, string> }) {
   );
 }
 
-type CashSnap = { date?: string; amount?: string; comment?: string | null };
+type CashSnap = Record<string, unknown>;
+const CASH_LABEL: Record<CashSnapField, MessageKey> = {
+  date: "money.date", amount: "money.amount", account: "money.account_type", cashboxSdId: "money.cashbox", bankAccountId: "money.bank_account",
+  supplierSdId: "money.supplier", outletSdId: "money.buyer", categoryId: "money.category", counterpartyName: "money.party_name", comment: "money.comment",
+};
 
-function CashSnapshot({ s }: { s: CashSnap }) {
+// 6 Oct 2026: showed only date, amount and comment, hiding every other change. Now every changed field, with names.
+// function CashSnapshot({ s }: { s: CashSnap }) { ... date / amount / comment only ... }
+function CashSnapshot({ s, fields, names, t }: { s: CashSnap; fields: CashSnapField[]; names: Record<string, string>; t: (k: MessageKey) => string }) {
+  const show = (f: CashSnapField): string => {
+    const v = s[f];
+    if (v == null || v === "") return "—";
+    if (f === "date") return formatDate(String(v));
+    if (f === "amount") return formatMoney(String(v));
+    if (f === "account") return t(v === "bank" ? "money.bank" : "money.cash");
+    if (f === "cashboxSdId" || f === "bankAccountId" || f === "supplierSdId" || f === "outletSdId" || f === "categoryId") return names[String(v)] ?? String(v);
+    return String(v);
+  };
   return (
     <ul className="ml-4 list-disc">
-      {s.date && <li>{formatDate(s.date)}</li>}
-      {s.amount != null && <li>{formatMoney(s.amount)}</li>}
-      {s.comment && <li>{s.comment}</li>}
+      {fields.map((f) => (
+        <li key={f}>
+          <span className="text-muted-foreground">{t(CASH_LABEL[f])}: </span>
+          {show(f)}
+        </li>
+      ))}
     </ul>
   );
 }
@@ -83,11 +102,11 @@ export async function HistoryList({
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <div>
                       <Text variant="caption">{t("history.before")}</Text>
-                      <CashSnapshot s={(e.before ?? {}) as CashSnap} />
+                      <CashSnapshot s={(e.before ?? {}) as CashSnap} fields={changedCashFields((e.before ?? {}) as CashSnap, (e.after ?? {}) as CashSnap)} names={names} t={t} />
                     </div>
                     <div>
                       <Text variant="caption">{t("history.after")}</Text>
-                      <CashSnapshot s={(e.after ?? {}) as CashSnap} />
+                      <CashSnapshot s={(e.after ?? {}) as CashSnap} fields={changedCashFields((e.before ?? {}) as CashSnap, (e.after ?? {}) as CashSnap)} names={names} t={t} />
                     </div>
                   </div>
                 </details>

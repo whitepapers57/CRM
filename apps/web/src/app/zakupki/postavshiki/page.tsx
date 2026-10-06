@@ -32,7 +32,8 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
     <>
       <StickyToolbar>{header}</StickyToolbar>
       <Text variant="caption">{t("zakupki.debt_formula")}</Text>
-      <Text variant="caption">{t("recon.cash_pending")}</Text>
+      {/* 6 Oct 2026: Оплачено is real now (cash module); caption retired, key kept.
+      <Text variant="caption">{t("recon.cash_pending")}</Text> */}
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>

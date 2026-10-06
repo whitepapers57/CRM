@@ -11,6 +11,7 @@ import type { MessageKey } from "@/i18n/messages";
 import { apiGet, type AuditEntry, type CashOperationDetail } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
+import { cashNames } from "@/lib/cash-names";
 import { OpActions } from "../../op-actions";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -39,6 +40,8 @@ export default async function CashOperationPage({ params }: PageProps<"/dengi/op
     );
   }
   const o = res.data;
+  const names = await cashNames([o]);
+  if (o.outletSdId && o.party) names[o.outletSdId] ??= o.party;
   const opName = t(`money.op.${o.operation}` as MessageKey);
   return (
     <>
@@ -46,7 +49,7 @@ export default async function CashOperationPage({ params }: PageProps<"/dengi/op
         <PageHeader title={t("money.op_title", { operation: opName, number: o.number, date: formatDate(o.date) })}>
           <div className="flex flex-wrap items-center gap-2">
             <HistoryButton label={t("history.open")}>
-              <HistoryList bare entries={history.ok ? history.data : []} />
+              <HistoryList bare entries={history.ok ? history.data : []} names={names} />
             </HistoryButton>
             <OpActions id={o.id} number={o.number} monthOpen={o.monthOpen} cancelled={!!o.cancelled} locale={locale} />
           </div>

@@ -32,6 +32,19 @@ export default async function EditCashOperationPage({ params }: PageProps<"/deng
     );
   }
   const o = (res as { data: CashOperationDetail }).data;
+  // 6 Oct 2026: form options hold only active items; an operation on a hidden статья / account / buyer would show its raw id.
+  const base = (opts as { data: CashFormOptions }).data;
+  const hidden = ` (${t("refs.inactive")})`;
+  const withCurrent = (list: Array<{ id: string; name: string }>, id: string | null, name: string | null) =>
+    id && !list.some((x) => x.id === id) ? [...list, { id, name: `${name ?? id}${hidden}` }] : list;
+  const options: CashFormOptions = {
+    ...base,
+    bankAccounts: withCurrent(base.bankAccounts, o.bankAccountId, o.bankAccountName),
+    suppliers: withCurrent(base.suppliers, o.supplierSdId, o.supplierName),
+    outlets: withCurrent(base.outlets, o.outletSdId, o.party),
+    expenseCategories: o.categoryId && o.direction === "out" ? withCurrent(base.expenseCategories, o.categoryId, o.party) : base.expenseCategories,
+    incomeCategories: o.categoryId && o.direction === "in" ? withCurrent(base.incomeCategories, o.categoryId, o.party) : base.incomeCategories,
+  };
   if (o.cancelled || !o.monthOpen) {
     return (
       <>
@@ -53,7 +66,7 @@ export default async function EditCashOperationPage({ params }: PageProps<"/deng
         id={o.id}
         page={`${o.account}-${o.direction}` as CashPage}
         operation={o.operation}
-        options={(opts as { data: CashFormOptions }).data}
+        options={options}
         closedMonths={months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []}
         today={tashkentToday()}
         locale={locale}

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { CashFormOptions, CashPage } from "@/lib/api";
-import { DEPOSIT, needsOf } from "@/lib/cash-ops";
+import { DEPOSIT, cleanAmount, needsOf, parseAmountInput } from "@/lib/cash-ops";
 import { dateProblem, decimals } from "@/lib/receipt-rules";
 import { saveCash } from "./actions";
 
@@ -96,10 +96,10 @@ export function CashForm({
     if (account === "cash" ? !cashbox : !bank) e.box = t("errors.required");
     if (deposit && !bank) e.deposit = t("errors.required");
     if (!needValue) e.need = t("errors.required");
-    const n = Number(amount.trim().replace(",", "."));
+    const n = parseAmountInput(amount);
     if (amount.trim() === "") e.amount = t("errors.required");
-    else if (!(n > 0)) e.amount = t("errors.positive");
-    else if (decimals(amount) > 2) e.amount = t("errors.max_decimals", { n: "2" });
+    else if (n === null || !(n > 0)) e.amount = t("errors.positive");
+    else if (decimals(cleanAmount(amount)) > 2) e.amount = t("errors.max_decimals", { n: "2" });
     setErrors(e);
     return Object.values(e).every((v) => !v);
   };
@@ -113,7 +113,7 @@ export function CashForm({
         operation,
         account,
         date,
-        amount: Number(amount.trim().replace(",", ".")),
+        amount: parseAmountInput(amount) ?? 0,
         cashboxSdId: account === "cash" ? cashbox : null,
         bankAccountId: account === "bank" ? bank : null,
         targetBankAccountId: deposit ? bank : null,

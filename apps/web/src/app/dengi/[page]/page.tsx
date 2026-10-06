@@ -7,7 +7,7 @@ import { HistoryList } from "@/components/app/history-list";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
 import { PagePeriod } from "@/components/app/page-period";
-import { PlaceholderPage } from "@/components/app/placeholder-page";
+// import { PlaceholderPage } from "@/components/app/placeholder-page"; // 6 Oct 2026: unused with the LATER lookup retired
 import { Select } from "@/components/app/select";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
@@ -21,18 +21,20 @@ import { apiGet, qs, type AuditEntry, type CashList, type CashPage } from "@/lib
 import { formatDate, formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
+import { cashNames } from "@/lib/cash-names";
 import { CreateMenu } from "../create-menu";
 
 const PAGES: CashPage[] = ["cash-in", "cash-out", "bank-in", "bank-out"];
 // Panel links whose pages come later.
 // 6 Oct 2026: stati and scheta now have their own pages (Task 9); old entry kept:
 // const LATER: Record<string, MessageKey> = { stati: "money.categories", scheta: "money.accounts" };
-const LATER: Record<string, MessageKey> = {};
+// const LATER: Record<string, MessageKey> = {}; // 6 Oct 2026: empty, only fed the buggy `in` lookup
 
 export default async function CashListPage({ params, searchParams }: PageProps<"/dengi/[page]">) {
   const { page } = await params;
   const t = await getT();
-  if (page in LATER) return <PlaceholderPage title={t(LATER[page])} />;
+  // 6 Oct 2026: `page in LATER` also matched "constructor"/"toString" (/dengi/constructor crashed); LATER is empty, so unknown names go to notFound().
+  // if (page in LATER) return <PlaceholderPage title={t(LATER[page])} />;
   if (!PAGES.includes(page as CashPage)) notFound();
   const cashPage = page as CashPage;
   const sp = await searchParams;
@@ -43,6 +45,7 @@ export default async function CashListPage({ params, searchParams }: PageProps<"
     apiGet<AuditEntry[]>(`/cash/pages/${cashPage}/history`),
   ]);
   const entries = history.ok ? history.data : [];
+  const names = await cashNames(res.ok ? res.data.rows : []);
   const numbers = new Map(res.ok ? res.data.rows.map((r) => [r.id, r.number] as const) : []);
   const linkFor = Object.fromEntries(
     entries.map((e) => [e.target, { href: `/dengi/op/${encodeURIComponent(e.target)}`, label: numbers.get(e.target) ?? t("history.open_document") }]),
@@ -62,7 +65,7 @@ export default async function CashListPage({ params, searchParams }: PageProps<"
           />
         )}
         <HistoryButton label={t("history.open")}>
-          <HistoryList bare entries={entries} linkFor={linkFor} />
+          <HistoryList bare entries={entries} linkFor={linkFor} names={names} />
         </HistoryButton>
         <PagePeriod from={q.from} to={q.to} />
       </div>
