@@ -344,3 +344,54 @@ model PurchaseHidden {
   hiddenAt     DateTime @default(now())
   reason       String
 }
+
+/// Our bank accounts (placeholder: «Основной счёт» until the owner lists them).
+model BankAccount {
+  id        String   @id @default(uuid())
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+/// Статьи движения денег. kind: "expense" | "income".
+model CashCategory {
+  id        String   @id @default(uuid())
+  name      String
+  kind      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+/// Which page a Salesdoc payment type lands on. Not a column on PaymentType: the sync recreates those rows.
+model PaymentTypeAccount {
+  paymentTypeSdId String @id
+  account         String /// "cash" | "bank"
+}
+
+/// Money in or out, entered in our app (spec §3–4). Never deleted; cancelled instead.
+model CashOperation {
+  id               String    @id @default(uuid())
+  seq              Int       @unique @default(autoincrement())
+  direction        String    /// "in" | "out"
+  account          String    /// "cash" | "bank"
+  cashboxSdId      String?
+  bankAccountId    String?
+  date             DateTime  @db.Date
+  amount           Decimal   @db.Decimal(18, 2)
+  operation        String    /// a code from src/cash/operations.ts
+  supplierSdId     String?
+  outletSdId       String?
+  categoryId       String?
+  counterpartyName String?
+  comment          String?
+  createdById      String
+  createdByName    String
+  createdAt        DateTime  @default(now())
+  cancelledAt      DateTime?
+  cancelledById    String?
+  cancelledByName  String?
+  cancelReason     String?
+
+  @@index([account, direction, date])
+  @@index([supplierSdId, date])
+}

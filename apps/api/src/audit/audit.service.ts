@@ -3,7 +3,10 @@ import { PrismaService } from '../database/prisma.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AuthUser } from '../auth/auth.service.js';
 
-export type AuditAction = 'purchase.edit' | 'purchase.delete' | 'purchase.restore' | 'month.close' | 'month.open';
+export type AuditAction =
+  | 'purchase.edit' | 'purchase.delete' | 'purchase.restore'
+  | 'month.close' | 'month.open'
+  | 'cash.create' | 'cash.edit' | 'cash.cancel' | 'cash.restore';
 type Db = PrismaService | Prisma.TransactionClient;
 const json = (v: unknown) => (v === undefined ? undefined : (v as Prisma.InputJsonValue));
 
@@ -29,10 +32,11 @@ export class AuditService {
     });
   }
 
-  async list(where: { target?: string; actionPrefix?: string }) {
+  async list(where: { target?: string; targets?: string[]; actionPrefix?: string }) {
     const rows = await this.prisma.auditLog.findMany({
       where: {
         ...(where.target ? { target: where.target } : {}),
+        ...(where.targets ? { target: { in: where.targets } } : {}),
         ...(where.actionPrefix ? { action: { startsWith: where.actionPrefix } } : {}),
       },
       orderBy: [{ at: 'desc' }, { id: 'desc' }],
