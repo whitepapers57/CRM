@@ -18,13 +18,17 @@ import { cn } from "@/lib/utils";
 
 /** Salesdoc order statuses 1–5; 5 = cancelled (greyed, not in Итого). */
 const STATUSES = [1, 2, 3, 4, 5];
+/** The page opens on delivered orders (owner, 6 Oct 2026); «Все» is sent as "all". */
+const DEFAULT_STATUS = "3";
+const ALL = "all";
 
 export default async function SalesInvoicesPage({ searchParams }: PageProps<"/prodazhi/nakladnye">) {
   const t = await getT();
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
-  const q = { from: get("from"), to: get("to"), status: get("status"), warehouse: get("warehouse"), agent: get("agent"), search: get("search") };
-  const res = await apiGet<SalesOrderList>(`/sales/orders${qs(q)}`);
+  const status = get("status") ?? DEFAULT_STATUS;
+  const q = { from: get("from"), to: get("to"), status, warehouse: get("warehouse"), agent: get("agent"), search: get("search") };
+  const res = await apiGet<SalesOrderList>(`/sales/orders${qs({ ...q, status: status === ALL ? undefined : status })}`);
   const header = (
     <PageHeader title={t("nav.sales_invoices")}>
       <PagePeriod from={q.from} to={q.to} />
@@ -50,10 +54,10 @@ export default async function SalesInvoicesPage({ searchParams }: PageProps<"/pr
           {q.to && <input type="hidden" name="to" value={q.to} />}
           <Select
             name="status"
-            defaultValue={q.status ?? ""}
+            defaultValue={q.status}
             ariaLabel={t("months.status")}
             options={[
-              { value: "", label: `${t("months.status")}: ${t("common.all")}` },
+              { value: ALL, label: `${t("months.status")}: ${t("common.all")}` },
               ...STATUSES.map((s) => ({ value: String(s), label: t(`sales.status.${s}` as MessageKey) })),
             ]}
           />
