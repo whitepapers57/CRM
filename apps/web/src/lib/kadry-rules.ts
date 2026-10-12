@@ -58,7 +58,13 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const clean = (v: string | undefined) => (v ?? "").trim();
 const compact = (v: string | undefined) => clean(v).replace(/\s+/g, "");
-const validDay = (s: string) => DAY.test(s) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
+// 12 Oct 2026: toISOString() throws a RangeError on «2026-13-01»; Date.parse is NaN there, so check it first.
+// const validDay = (s: string) => DAY.test(s) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
+const validDay = (s: string) => {
+  if (!DAY.test(s)) return false;
+  const ms = Date.parse(`${s}T00:00:00Z`);
+  return !Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === s;
+};
 
 /** Why a custom schedule cannot be saved (the API refuses the same cases), or null. null / absent schedule = "by position". */
 export function scheduleProblem(s: WorkSchedule | null | undefined): MessageKey | null {
@@ -116,11 +122,28 @@ export function ageYears(birth: string, today: string): number {
   return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0);
 }
 
-/** «3 г 2 мес», «5 мес», «2 г». */
-export function tenureLabel(months: number): string {
+// 12 Oct 2026: units were hard-coded Russian («г», «мес») and showed on Uzbek pages; they come from translations now.
+// export function tenureLabel(months: number): string { ... `${years} г ${rest} мес` ... }
+/** «3 г 2 мес», «5 мес», «2 г»; `units` are the translated short words. */
+export function tenureLabel(months: number, units: { years: string; months: string }): string {
   const m = Math.max(0, Math.round(months));
   const years = Math.floor(m / 12);
   const rest = m % 12;
-  if (years === 0) return `${rest} мес`;
-  return rest === 0 ? `${years} г` : `${years} г ${rest} мес`;
+  if (years === 0) return `${rest} ${units.months}`;
+  return rest === 0 ? `${years} ${units.years}` : `${years} ${units.years} ${rest} ${units.months}`;
+}
+
+/**
+ * Options for a position Select. A name shared by two positions is labelled «Должность (Отдел)», and the
+ * `selectedId` position is always present even when `shown` (the department-filtered list) no longer contains it.
+ */
+export function positionOptions(
+  all: Array<{ id: string; name: string; departmentName: string | null }>,
+  shown: Array<{ id: string; name: string; departmentName: string | null }>,
+  selectedId: string,
+): Array<{ value: string; label: string }> {
+  const counts = new Map<string, number>();
+  for (const p of all) counts.set(p.name, (counts.get(p.name) ?? 0) + 1);
+  const list = shown.some((p) => p.id === selectedId) ? shown : [...shown, ...all.filter((p) => p.id === selectedId)];
+  return list.map((p) => ({ value: p.id, label: (counts.get(p.name) ?? 0) > 1 && p.departmentName ? `${p.name} (${p.departmentName})` : p.name }));
 }

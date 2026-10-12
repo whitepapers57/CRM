@@ -15,7 +15,7 @@ import type { MessageKey } from "@/i18n/messages";
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type AuditEntry, type KadryEmployeeRow, type KadryMetrics, type KadryStructure } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import { tenureLabel } from "@/lib/kadry-rules";
+import { positionOptions, tenureLabel } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 
 const STATUSES = ["working", "terminated", "all"] as const;
@@ -96,7 +96,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/
             name="position"
             defaultValue={q.position ?? ""}
             ariaLabel={t("kadry.position")}
-            options={[{ value: "", label: `${t("kadry.position")}: ${t("common.all")}` }, ...positions.map((p) => ({ value: p.id, label: p.name }))]}
+            // 12 Oct 2026: options={[{ ... }, ...positions.map((p) => ({ value: p.id, label: p.name }))]} — repeated names were indistinguishable.
+            options={[{ value: "", label: `${t("kadry.position")}: ${t("common.all")}` }, ...positionOptions(positions, positions, "")]}
           />
           <Input name="search" defaultValue={q.search} placeholder={t("kadry.search")} aria-label={t("kadry.search")} className="w-72 max-w-full" />
           <Select
@@ -124,7 +125,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/
               </>
             )}
           </Metric>
-          <Metric title={t("kadry.m.tenure")} value={m.averageTenureMonths == null ? "—" : tenureLabel(m.averageTenureMonths)} hint={m.averageTenureMonths == null ? noData : undefined} />
+          <Metric title={t("kadry.m.tenure")} value={m.averageTenureMonths == null ? "—" : tenureLabel(m.averageTenureMonths, { years: t("kadry.unit.years_short"), months: t("kadry.unit.months_short") })} hint={m.averageTenureMonths == null ? noData : undefined} />
           <Metric
             title={t("kadry.m.turnover")}
             value={m.turnoverPercent == null ? "—" : `${m.turnoverPercent}%`}

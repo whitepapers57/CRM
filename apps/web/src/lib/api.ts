@@ -266,3 +266,5 @@ export interface KadryEmployee {
   diplomas: Array<{ id: string; degree: string | null; institution: string | null; specialty: string | null; enrolledYear: number | null; graduatedYear: number | null; seriesNumber: string | null; issuedDate: string | null; status: string | null }>;
   accounts: KadryAccount[]; canDelete: boolean;
 }
+
+export interface KadrySalesdocAccount { kind: "agent" | "expeditor" | "supervisor"; sdId: string; name: string; active: boolean; exists: boolean; employee: { id: string; name: string } | null }

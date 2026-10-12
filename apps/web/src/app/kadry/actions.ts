@@ -47,3 +47,42 @@ export async function createEmployee(form: EmployeeForm): Promise<{ ok: boolean;
 export async function updateEmployee(id: string, form: EmployeeForm): Promise<Result> {
   return done(await apiPut(path("/kadry/employees", id), toBody(form, false)));
 }
+
+// Status changes and deletion.
+const emp = (id: string) => path("/kadry/employees", id);
+export async function dismissEmployee(id: string, reasonId: string) {
+  return done(await apiPost(`${emp(id)}/dismiss`, { reasonId }));
+}
+export async function restoreEmployee(id: string) {
+  return done(await apiPost(`${emp(id)}/restore`, {}));
+}
+export async function makePermanent(id: string) {
+  return done(await apiPost(`${emp(id)}/make-permanent`, {}));
+}
+export async function deleteEmployee(id: string) {
+  return done(await apiDelete(emp(id)));
+}
+
+// Relatives and diplomas: saves are FULL REPLACE (a field not sent becomes null), so the dialogs send every field.
+export interface RelativeBody { relation: string; fullName: string | null; birthDate: string | null; workplacePosition: string | null; residenceAddress: string | null; phone: string | null }
+export interface DiplomaBody { degree: string | null; institution: string | null; specialty: string | null; enrolledYear: number | null; graduatedYear: number | null; seriesNumber: string | null; issuedDate: string | null; status: string | null }
+export async function saveRelative(id: string, rid: string | null, body: RelativeBody) {
+  return done(await (rid ? apiPut : apiPost)(path(`${emp(id)}/relatives`, rid), body));
+}
+export async function deleteRelative(id: string, rid: string) {
+  return done(await apiDelete(path(`${emp(id)}/relatives`, rid)));
+}
+export async function saveDiploma(id: string, did: string | null, body: DiplomaBody) {
+  return done(await (did ? apiPut : apiPost)(path(`${emp(id)}/diplomas`, did), body));
+}
+export async function deleteDiploma(id: string, did: string) {
+  return done(await apiDelete(path(`${emp(id)}/diplomas`, did)));
+}
+
+// Salesdoc accounts.
+export async function linkAccount(id: string, kind: string, sdId: string) {
+  return done(await apiPost(`${emp(id)}/salesdoc`, { kind, sdId }));
+}
+export async function unlinkAccount(id: string, kind: string, sdId: string) {
+  return done(await apiDelete(`${emp(id)}/salesdoc/${encodeURIComponent(kind)}/${encodeURIComponent(sdId)}`));
+}

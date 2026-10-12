@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { KadryStructure } from "@/lib/api";
-import { EMPLOYMENT_TYPES, emptyEmployeeForm, employeeProblems, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
+import { EMPLOYMENT_TYPES, emptyEmployeeForm, employeeProblems, positionOptions, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { createEmployee, updateEmployee } from "../actions";
 import { ScheduleEditor } from "./schedule-editor";
@@ -33,28 +33,23 @@ function daysLabel(days: number[], t: (k: MessageKey) => string): string {
  * edit mode (Task 7's «Трудовая книжка» page) starts from the whole card in `initial` and sends every field back,
  * because the API's PUT replaces all editable fields.
  */
-export function WorkplaceForm({
-  mode,
-  structure,
-  locale,
-  today,
-  cancelHref,
-  initial,
-  employeeId,
-  doneHref,
-}: {
-  mode: "create" | "edit";
+// 12 Oct 2026: props were { mode: "create" | "edit"; initial?; employeeId?; … }, so an edit without employeeId fell through to createEmployee.
+// Now a union: edit always carries employeeId and initial.
+type CommonProps = {
   structure: KadryStructure;
   locale: Locale;
   today: string;
   cancelHref: string;
-  /** Edit mode: the card as a form (`employeeFormFrom(card)`). */
-  initial?: EmployeeForm;
-  /** Edit mode: whose card this is. */
-  employeeId?: string;
   /** Where to go after a successful save; create goes to the new card, edit defaults to `cancelHref`. */
   doneHref?: string;
-}) {
+};
+export type WorkplaceFormProps =
+  | ({ mode: "create" } & CommonProps)
+  | ({ mode: "edit"; employeeId: string; /** `employeeFormFrom(card)`. */ initial: EmployeeForm } & CommonProps);
+
+export function WorkplaceForm(props: WorkplaceFormProps) {
+  const { mode, structure, locale, today, cancelHref, doneHref } = props;
+  const initial = props.mode === "edit" ? props.initial : undefined;
   const t = (key: MessageKey, vars?: Record<string, string>) => translate(locale, key, vars);
   const router = useRouter();
   const [form, setForm] = useState<EmployeeForm>(() => initial ?? emptyEmployeeForm(today));
@@ -75,6 +70,8 @@ export function WorkplaceForm({
   const { departments, positions } = structure;
   const shownPositions = form.departmentId ? positions.filter((p) => p.departmentId === form.departmentId || p.departmentId === null) : positions;
   const position = positions.find((p) => p.id === form.positionId);
+  // The chosen position stays selectable even if it belongs to another department now; repeated names carry their department.
+  const positionChoices = positionOptions(positions, shownPositions, form.positionId);
   const pickDepartment = (id: string) => {
     setForm((f) => {
       const keep = positions.find((p) => p.id === f.positionId);
@@ -107,8 +104,8 @@ export function WorkplaceForm({
     start(async () => {
       try {
         setMessage(null);
-        if (mode === "edit" && employeeId) {
-          const r = await updateEmployee(employeeId, form);
+        if (props.mode === "edit") {
+          const r = await updateEmployee(props.employeeId, form);
           if (r.ok) {
             router.push(doneHref ?? cancelHref);
             router.refresh();
@@ -177,7 +174,7 @@ export function WorkplaceForm({
               onValueChange={pickPosition}
               ariaLabel={t("kadry.position")}
               className="w-full"
-              options={[{ value: "", label: "—" }, ...shownPositions.map((p) => ({ value: p.id, label: p.name }))]}
+              options={[{ value: "", label: "—" }, ...positionChoices]}
             />
           </div>
           <div>

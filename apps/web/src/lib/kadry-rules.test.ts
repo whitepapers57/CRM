@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ageYears, employeeProblems, scheduleProblem, tenureLabel } from "./kadry-rules";
+import { ageYears, employeeProblems, positionOptions, scheduleProblem, tenureLabel } from "./kadry-rules";
 
 const today = "2026-10-12";
 const base = { lastName: "Нишонов", firstName: "Шоядбек" };
@@ -28,7 +28,28 @@ test("checks the schedule", () => {
 test("ages and tenure", () => {
   assert.equal(ageYears("1990-10-13", today), 35);
   assert.equal(ageYears("1990-10-12", today), 36);
-  assert.equal(tenureLabel(38), "3 г 2 мес");
-  assert.equal(tenureLabel(5), "5 мес");
-  assert.equal(tenureLabel(24), "2 г");
+  const ru = { years: "г", months: "мес" };
+  const uz = { years: "y.", months: "oy" };
+  assert.equal(tenureLabel(38, ru), "3 г 2 мес");
+  assert.equal(tenureLabel(5, ru), "5 мес");
+  assert.equal(tenureLabel(24, ru), "2 г");
+  assert.equal(tenureLabel(38, uz), "3 y. 2 oy");
+});
+
+test("impossible calendar days are problems, not crashes", () => {
+  assert.deepEqual(employeeProblems({ ...base, birthDate: "2026-13-01" }, today), { birthDate: "kadry.err.date" });
+  assert.deepEqual(employeeProblems({ ...base, hiredAt: "2026-02-32" }, today), { hiredAt: "kadry.err.date" });
+  assert.deepEqual(employeeProblems({ ...base, hiredAt: "2026-02-30" }, today), { hiredAt: "kadry.err.date" });
+  assert.deepEqual(employeeProblems({ ...base, hiredAt: "2024-02-29" }, today), {});
+});
+
+test("position options: selected one stays, repeated names get their department", () => {
+  const all = [
+    { id: "a", name: "Менеджер", departmentName: "Продажи" },
+    { id: "b", name: "Менеджер", departmentName: "Склад" },
+    { id: "c", name: "Водитель", departmentName: "Склад" },
+  ];
+  assert.deepEqual(positionOptions(all, all.slice(0, 1), "a"), [{ value: "a", label: "Менеджер (Продажи)" }]);
+  assert.deepEqual(positionOptions(all, all.slice(0, 1), "c"), [{ value: "a", label: "Менеджер (Продажи)" }, { value: "c", label: "Водитель" }]);
+  assert.deepEqual(positionOptions(all, [], ""), []);
 });
