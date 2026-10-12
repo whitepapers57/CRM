@@ -96,7 +96,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/
             name="position"
             defaultValue={q.position ?? ""}
             ariaLabel={t("kadry.position")}
-            // 12 Oct 2026: options={[{ ... }, ...positions.map((p) => ({ value: p.id, label: p.name }))]} — repeated names were indistinguishable.
+            // 12 Oct 2026 (repeated names were indistinguishable), old lines:
+            // options={[{ value: "", label: `${t("kadry.position")}: ${t("common.all")}` }, ...positions.map((p) => ({ value: p.id, label: p.name }))]}
             options={[{ value: "", label: `${t("kadry.position")}: ${t("common.all")}` }, ...positionOptions(positions, positions, "")]}
           />
           <Input name="search" defaultValue={q.search} placeholder={t("kadry.search")} aria-label={t("kadry.search")} className="w-72 max-w-full" />

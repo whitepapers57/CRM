@@ -26,6 +26,8 @@ function ConfirmAction({
   children,
   validate,
   triggerVariant = "outline",
+  onOpen,
+  disabled,
 }: {
   trigger: string;
   title: string;
@@ -37,6 +39,10 @@ function ConfirmAction({
   /** Returns false to stop before calling `run` (it shows its own error). */
   validate?: () => boolean;
   triggerVariant?: "outline" | "default";
+  /** Runs every time the dialog opens (resets the dialog fields). */
+  onOpen?: () => void;
+  /** Disables the confirm button. */
+  disabled?: boolean;
 }) {
   const t = (key: MessageKey) => translate(locale, key);
   const [open, setOpen] = useState(false);
@@ -63,7 +69,10 @@ function ConfirmAction({
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) setError(null);
+        if (o) {
+          setError(null);
+          onOpen?.();
+        }
       }}
     >
       <DialogTrigger className={cn(buttonVariants({ variant: triggerVariant }), "active:scale-95")}>{trigger}</DialogTrigger>
@@ -73,7 +82,7 @@ function ConfirmAction({
         {error && <Text role="alert" variant="error">{error}</Text>}
         <DialogFooter>
           <DialogClose className={cn(buttonVariants({ variant: "outline" }), "active:scale-95")}>{t("common.cancel")}</DialogClose>
-          <Button variant={destructive ? "destructive" : "default"} onClick={go} disabled={pending} className="active:scale-95">
+          <Button variant={destructive ? "destructive" : "default"} onClick={go} disabled={pending || disabled} className="active:scale-95">
             {pending && <Spinner />}
             {confirmLabel}
           </Button>
@@ -121,6 +130,11 @@ export function StatusActions({
           confirmLabel={t("kadry.dismiss")}
           destructive
           locale={locale}
+          disabled={reasons.length === 0}
+          onOpen={() => {
+            setReasonId("");
+            setReasonError(null);
+          }}
           validate={() => {
             if (reasons.length === 0) return false;
             if (!reasonId) {

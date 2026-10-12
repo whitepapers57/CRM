@@ -106,7 +106,7 @@ export function RelativeDialog({ employeeId, relative, locale }: { employeeId: s
             {relationError && <Text role="alert" variant="error" className="mt-1">{relationError}</Text>}
           </div>
           <Field label={t("kadry.full_name")} value={fullName} autoComplete="off" onChange={(e) => setFullName(e.target.value)} />
-          <DateField label={t("kadry.birth_date")} value={birthDate} onChange={setBirthDate} locale={locale} />
+          <DateField clearable label={t("kadry.birth_date")} value={birthDate} onChange={setBirthDate} locale={locale} />
           <Field label={t("kadry.workplace_position")} value={workplace} autoComplete="off" onChange={(e) => setWorkplace(e.target.value)} />
           <Field label={t("kadry.residence")} value={residence} autoComplete="off" onChange={(e) => setResidence(e.target.value)} />
           <Field label={t("kadry.phone")} value={phone} inputMode="tel" autoComplete="off" onChange={(e) => setPhone(e.target.value)} />

@@ -1,12 +1,12 @@
 "use client";
 
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { ru, uz } from "react-day-picker/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { Locale } from "@/i18n/messages";
+import { translate, type Locale } from "@/i18n/messages";
 import { dateToDay, dayToDate } from "@/lib/day";
 import { cn } from "@/lib/utils";
 import { Text } from "./text";
@@ -22,6 +22,7 @@ export function DateField({
   min,
   error,
   locale,
+  clearable,
 }: {
   label: string;
   value: string;
@@ -29,6 +30,8 @@ export function DateField({
   min?: string;
   error?: string;
   locale: Locale;
+  /** Optional dates: a clear button that empties the field (calls onChange("")). */
+  clearable?: boolean;
 }) {
   const id = useId();
   const errorId = `${id}-error`;
@@ -38,6 +41,7 @@ export function DateField({
       <Label htmlFor={id} className="mb-1 block text-xs text-muted-foreground">
         {label}
       </Label>
+      <div className="relative w-36">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           id={id}
@@ -66,6 +70,17 @@ export function DateField({
           />
         </PopoverContent>
       </Popover>
+      {clearable && value && (
+        <button
+          type="button"
+          aria-label={translate(locale, "common.clear")}
+          onClick={() => onChange("")}
+          className="absolute top-1/2 right-7 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition hover:text-foreground active:scale-90"
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      )}
+      </div>
       {error && (
         <Text id={errorId} role="alert" variant="error" className="mt-1">
           {error}

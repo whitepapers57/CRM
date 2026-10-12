@@ -10,7 +10,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTitle, DialogTr
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { KadryEmployee } from "@/lib/api";
-import { DEGREES, DIPLOMA_STATUSES } from "@/lib/kadry-rules";
+import { DEGREES, DEGREE_KEYS, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS, labelFor } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { deleteDiploma, saveDiploma } from "../../actions";
 import { ConfirmDelete } from "./confirm-delete";
@@ -84,10 +84,10 @@ export function DiplomaDialog({ employeeId, diploma, locale }: { employeeId: str
       }
     });
   };
-  const pick = (label: string, value: string, set: (v: string) => void, list: readonly string[]) => (
+  const pick = (label: string, value: string, set: (v: string) => void, list: readonly string[], keys: Record<string, MessageKey>) => (
     <div>
       <Label className="mb-1 block text-xs text-muted-foreground">{label}</Label>
-      <Select value={value} onValueChange={set} ariaLabel={label} className="w-full" options={[{ value: "", label: "—" }, ...list.map((d) => ({ value: d, label: d }))]} />
+      <Select value={value} onValueChange={set} ariaLabel={label} className="w-full" options={[{ value: "", label: "—" }, ...list.map((d) => ({ value: d, label: labelFor(keys, d, t) }))]} />
     </div>
   );
   return (
@@ -111,7 +111,7 @@ export function DiplomaDialog({ employeeId, diploma, locale }: { employeeId: str
             submit();
           }}
         >
-          {pick(t("kadry.degree"), degree, setDegree, DEGREES)}
+          {pick(t("kadry.degree"), degree, setDegree, DEGREES, DEGREE_KEYS)}
           <Field label={t("kadry.institution")} value={institution} autoComplete="off" onChange={(e) => setInstitution(e.target.value)} />
           <Field label={t("kadry.specialty")} value={specialty} autoComplete="off" onChange={(e) => setSpecialty(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
@@ -139,8 +139,8 @@ export function DiplomaDialog({ employeeId, diploma, locale }: { employeeId: str
             />
           </div>
           <Field label={t("kadry.series_number")} value={series} autoComplete="off" onChange={(e) => setSeries(e.target.value)} />
-          <DateField label={t("kadry.issued_date")} value={issued} onChange={setIssued} locale={locale} />
-          {pick(t("kadry.diploma_status"), status, setStatus, DIPLOMA_STATUSES)}
+          <DateField clearable label={t("kadry.issued_date")} value={issued} onChange={setIssued} locale={locale} />
+          {pick(t("kadry.diploma_status"), status, setStatus, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS)}
           {error && <Text role="alert" variant="error">{error}</Text>}
           <DialogFooter>
             <DialogClose className={cn(buttonVariants({ variant: "outline" }), "active:scale-95")}>{t("common.cancel")}</DialogClose>

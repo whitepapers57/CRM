@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ageYears, employeeProblems, positionOptions, scheduleProblem, tenureLabel } from "./kadry-rules";
+import { DEGREES, DEGREE_KEYS, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS, ageYears, employeeProblems, positionOptions, scheduleProblem, tenureLabel } from "./kadry-rules";
 
 const today = "2026-10-12";
 const base = { lastName: "Нишонов", firstName: "Шоядбек" };
@@ -52,4 +52,9 @@ test("position options: selected one stays, repeated names get their department"
   assert.deepEqual(positionOptions(all, all.slice(0, 1), "a"), [{ value: "a", label: "Менеджер (Продажи)" }]);
   assert.deepEqual(positionOptions(all, all.slice(0, 1), "c"), [{ value: "a", label: "Менеджер (Продажи)" }, { value: "c", label: "Водитель" }]);
   assert.deepEqual(positionOptions(all, [], ""), []);
+});
+
+test("every diploma degree and status has a message key", () => {
+  for (const d of DEGREES) assert.ok(DEGREE_KEYS[d], d);
+  for (const d of DIPLOMA_STATUSES) assert.ok(DIPLOMA_STATUS_KEYS[d], d);
 });

@@ -8,7 +8,7 @@ import { getT } from "@/i18n/server";
 import type { Locale } from "@/i18n/messages";
 import type { KadryEmployee } from "@/lib/api";
 import { formatDate, formatQty } from "@/lib/format";
-import { tenureLabel } from "@/lib/kadry-rules";
+import { DEGREE_KEYS, DIPLOMA_STATUS_KEYS, labelFor, tenureLabel } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { DeleteDiploma, DiplomaDialog } from "./diploma-dialog";
 import { DeleteRelative, RelativeDialog } from "./relative-dialog";
@@ -132,13 +132,13 @@ export async function EducationTab({ e, locale }: { e: KadryEmployee; locale: Lo
             )}
             {e.diplomas.map((d) => (
               <TableRow key={d.id}>
-                <TableCell>{d.degree ?? "—"}</TableCell>
+                <TableCell>{d.degree ? labelFor(DEGREE_KEYS, d.degree, t) : "—"}</TableCell>
                 <TableCell>{d.institution ?? "—"}</TableCell>
                 <TableCell>{d.specialty ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">{d.enrolledYear ?? "—"}–{d.graduatedYear ?? "—"}</TableCell>
                 <TableCell>{d.seriesNumber ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">{date(d.issuedDate)}</TableCell>
-                <TableCell>{d.status ?? "—"}</TableCell>
+                <TableCell>{d.status ? labelFor(DIPLOMA_STATUS_KEYS, d.status, t) : "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <DiplomaDialog employeeId={e.id} diploma={d} locale={locale} />

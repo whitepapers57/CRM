@@ -9,6 +9,15 @@ export const RELATIONS = ["spouse", "mother", "father", "child", "sibling", "oth
 export const DEGREES = ["Бакалавр", "Магистр", "Доктор", "Среднее", "Среднее спец."] as const;
 export const DIPLOMA_STATUSES = ["Подтверждён", "Не подтверждён"] as const;
 
+/** Stored (Russian) diploma values -> message keys, so the UI can show them in the viewer's language. */
+export const DEGREE_KEYS: Record<string, MessageKey> = {
+  "Бакалавр": "kadry.degree.bachelor", "Магистр": "kadry.degree.master", "Доктор": "kadry.degree.doctor",
+  "Среднее": "kadry.degree.secondary", "Среднее спец.": "kadry.degree.secondary_special",
+};
+export const DIPLOMA_STATUS_KEYS: Record<string, MessageKey> = { "Подтверждён": "kadry.dstatus.confirmed", "Не подтверждён": "kadry.dstatus.unconfirmed" };
+/** Label for a stored degree / status value; an unknown value is shown as stored. */
+export const labelFor = (map: Record<string, MessageKey>, value: string, t: (k: MessageKey) => string) => (map[value] ? t(map[value]) : value);
+
 /** Every editable employee field as typed in the form: strings (dates YYYY-MM-DD or ""), a checkbox and a schedule. */
 export interface EmployeeForm {
   lastName: string; firstName: string; middleName: string;
@@ -123,7 +132,14 @@ export function ageYears(birth: string, today: string): number {
 }
 
 // 12 Oct 2026: units were hard-coded Russian («г», «мес») and showed on Uzbek pages; they come from translations now.
-// export function tenureLabel(months: number): string { ... `${years} г ${rest} мес` ... }
+// /** «3 г 2 мес», «5 мес», «2 г». */
+// export function tenureLabel(months: number): string {
+//   const m = Math.max(0, Math.round(months));
+//   const years = Math.floor(m / 12);
+//   const rest = m % 12;
+//   if (years === 0) return `${rest} мес`;
+//   return rest === 0 ? `${years} г` : `${years} г ${rest} мес`;
+// }
 /** «3 г 2 мес», «5 мес», «2 г»; `units` are the translated short words. */
 export function tenureLabel(months: number, units: { years: string; months: string }): string {
   const m = Math.max(0, Math.round(months));

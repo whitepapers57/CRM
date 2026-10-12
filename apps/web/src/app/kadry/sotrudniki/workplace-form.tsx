@@ -33,8 +33,29 @@ function daysLabel(days: number[], t: (k: MessageKey) => string): string {
  * edit mode (Task 7's «Трудовая книжка» page) starts from the whole card in `initial` and sends every field back,
  * because the API's PUT replaces all editable fields.
  */
-// 12 Oct 2026: props were { mode: "create" | "edit"; initial?; employeeId?; … }, so an edit without employeeId fell through to createEmployee.
-// Now a union: edit always carries employeeId and initial.
+// 12 Oct 2026: props were the block below, so an edit without employeeId fell through to createEmployee. Now a union: edit always carries employeeId and initial.
+// export function WorkplaceForm({
+//   mode,
+//   structure,
+//   locale,
+//   today,
+//   cancelHref,
+//   initial,
+//   employeeId,
+//   doneHref,
+// }: {
+//   mode: "create" | "edit";
+//   structure: KadryStructure;
+//   locale: Locale;
+//   today: string;
+//   cancelHref: string;
+//   /** Edit mode: the card as a form (`employeeFormFrom(card)`). */
+//   initial?: EmployeeForm;
+//   /** Edit mode: whose card this is. */
+//   employeeId?: string;
+//   /** Where to go after a successful save; create goes to the new card, edit defaults to `cancelHref`. */
+//   doneHref?: string;
+// }) {
 type CommonProps = {
   structure: KadryStructure;
   locale: Locale;
@@ -104,6 +125,7 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
     start(async () => {
       try {
         setMessage(null);
+        // 12 Oct 2026: if (mode === "edit" && employeeId) {
         if (props.mode === "edit") {
           const r = await updateEmployee(props.employeeId, form);
           if (r.ok) {
@@ -174,6 +196,7 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
               onValueChange={pickPosition}
               ariaLabel={t("kadry.position")}
               className="w-full"
+              // 12 Oct 2026: options={[{ value: "", label: "—" }, ...shownPositions.map((p) => ({ value: p.id, label: p.name }))]}
               options={[{ value: "", label: "—" }, ...positionChoices]}
             />
           </div>
@@ -199,9 +222,9 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
           </div>
           {text("rate", "kadry.rate", { inputMode: "decimal", autoComplete: "off" })}
           {text("salary", "kadry.salary", { inputMode: "numeric", autoComplete: "off" })}
-          <DateField label={t("kadry.hired_at")} value={form.hiredAt} onChange={(d) => set("hiredAt", d)} error={err("hiredAt")} locale={locale} />
+          <DateField clearable label={t("kadry.hired_at")} value={form.hiredAt} onChange={(d) => set("hiredAt", d)} error={err("hiredAt")} locale={locale} />
           {text("orderNumber", "kadry.order_number", { autoComplete: "off" })}
-          <DateField label={t("kadry.order_date")} value={form.orderDate} onChange={(d) => set("orderDate", d)} error={err("orderDate")} locale={locale} />
+          <DateField clearable label={t("kadry.order_date")} value={form.orderDate} onChange={(d) => set("orderDate", d)} error={err("orderDate")} locale={locale} />
           {text("experienceMonths", "kadry.experience", { inputMode: "numeric", autoComplete: "off" })}
         </CardContent>
       </Card>
