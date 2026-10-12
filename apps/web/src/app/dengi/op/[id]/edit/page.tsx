@@ -12,6 +12,7 @@ export default async function EditCashOperationPage({ params }: PageProps<"/deng
   const t = await getT();
   const locale = await getLocale();
   const { id } = await params;
+  const back = `/dengi/op/${encodeURIComponent(id)}`;
   const [res, opts, months] = await Promise.all([
     apiGet<CashOperationDetail>(`/cash/operations/${encodeURIComponent(id)}`),
     apiGet<CashFormOptions>("/cash/form-options"),
@@ -19,7 +20,7 @@ export default async function EditCashOperationPage({ params }: PageProps<"/deng
   ]);
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("money.edit_title", { number: res.ok ? res.data.number : id })} />
+      <PageHeader back={back} title={t("money.edit_title", { number: res.ok ? res.data.number : id })} />
     </StickyToolbar>
   );
   const fail = !res.ok ? res : !opts.ok ? opts : null;
@@ -63,6 +64,7 @@ export default async function EditCashOperationPage({ params }: PageProps<"/deng
     <>
       {header}
       <CashForm
+        cancelHref={back}
         id={o.id}
         page={`${o.account}-${o.direction}` as CashPage}
         operation={o.operation}

@@ -9,5 +9,5 @@ export default async function ZakupkiSectionPage({ params }: PageProps<"/zakupki
   const link = findSlug(section);
   if (!link) notFound();
   const t = await getT();
-  return <PlaceholderPage title={t(link.label)} />;
+  return <PlaceholderPage title={t(link.label)} back="/zakupki" />;
 }

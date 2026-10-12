@@ -18,7 +18,7 @@ export default async function AccountsPage() {
   const [accounts, types] = await Promise.all([apiGet<BankAccount[]>("/cash/bank-accounts"), apiGet<PaymentType[]>("/cash/payment-types")]);
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("money.accounts")} />
+      <PageHeader back="/dengi" title={t("money.accounts")} />
     </StickyToolbar>
   );
   if (!accounts.ok) return <>{header}<ApiError message={accounts.status === 0 ? t("errors.api_down") : accounts.message || t("errors.unknown")} /></>;

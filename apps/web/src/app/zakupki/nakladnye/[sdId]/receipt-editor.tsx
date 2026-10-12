@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2Icon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { DateField } from "@/components/app/date-field";
@@ -8,12 +9,13 @@ import { Money } from "@/components/app/money-cell";
 import { ProductPicker } from "@/components/app/product-picker";
 import { Select } from "@/components/app/select";
 import { Text } from "@/components/app/text";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { FormOptions } from "@/lib/api";
 import { dateProblem, decimals } from "@/lib/receipt-rules";
+import { cn } from "@/lib/utils";
 import { saveReceipt } from "../actions";
 
 const DATA_START = "2026-09-01";
@@ -254,6 +256,13 @@ export function ReceiptEditor({
           {pending && <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />}
           {t("receipt.save")}
         </Button>
+        <Link
+          href={`/zakupki/nakladnye/${encodeURIComponent(sdId)}`}
+          aria-disabled={pending || undefined}
+          className={cn(buttonVariants({ variant: "outline" }), "active:scale-95", pending && "pointer-events-none opacity-50")}
+        >
+          {t("common.cancel")}
+        </Link>
         <Text variant="caption">{t("receipt.salesdoc_note")}</Text>
       </div>
     </form>

@@ -35,7 +35,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/zakupki
   const linkFor = Object.fromEntries(entries.map((e) => [e.target, { href: `/zakupki/nakladnye/${encodeURIComponent(e.target)}`, label: t("history.document", { number: e.target }) }]));
   const closed = new Set(months.ok ? months.data.filter((m) => m.closed).map((m) => m.month) : []);
   const header = (
-    <PageHeader title={t("nav.receipts")}>
+    <PageHeader back="/zakupki" title={t("nav.receipts")}>
       <div className="flex flex-wrap items-center gap-2">
         <HistoryButton label={t("history.open")}>
           <HistoryList bare entries={entries} linkFor={linkFor} />

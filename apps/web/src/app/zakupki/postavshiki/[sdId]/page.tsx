@@ -20,7 +20,7 @@ export default async function SupplierStatementPage({ params, searchParams }: Pa
   ]);
   const name = sdId === "-" ? t("zakupki.no_supplier") : (list.ok && list.data.rows.find((r) => r.sdId === sdId)?.name) || sdId;
   const header = (
-    <PageHeader title={name} subtitle={t("outlets.statement")}>
+    <PageHeader back={`/zakupki/postavshiki${qs({ from, to })}`} title={name} subtitle={t("outlets.statement")}>
       <PagePeriod from={from} to={to} />
     </PageHeader>
   );

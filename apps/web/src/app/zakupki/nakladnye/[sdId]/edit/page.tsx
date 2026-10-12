@@ -12,6 +12,7 @@ export default async function ReceiptEditPage({ params }: PageProps<"/zakupki/na
   const t = await getT();
   const locale = await getLocale();
   const { sdId } = await params;
+  const back = `/zakupki/nakladnye/${encodeURIComponent(sdId)}`;
   const [res, opts, months] = await Promise.all([
     apiGet<PurchaseDetail>(`/warehouse/purchases/${encodeURIComponent(sdId)}`),
     apiGet<FormOptions>("/warehouse/form-options"),
@@ -19,7 +20,7 @@ export default async function ReceiptEditPage({ params }: PageProps<"/zakupki/na
   ]);
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("receipt.edit_title", { number: sdId })} />
+      <PageHeader back={back} title={t("receipt.edit_title", { number: sdId })} />
     </StickyToolbar>
   );
   const fail = !res.ok ? res : !opts.ok ? opts : null;

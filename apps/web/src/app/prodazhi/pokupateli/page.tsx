@@ -27,7 +27,7 @@ export default async function BuyersPage({ searchParams }: PageProps<"/prodazhi/
     apiGet<Filters>("/outlets/filters"),
   ]);
   const header = (
-    <PageHeader title={t("nav.buyers")}>
+    <PageHeader back="/prodazhi" title={t("nav.buyers")}>
       <PagePeriod from={query.from} to={query.to} />
     </PageHeader>
   );

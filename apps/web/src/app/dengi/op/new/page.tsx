@@ -29,7 +29,7 @@ export default async function NewCashOperationPage({ searchParams }: PageProps<"
   const fail = !opts.ok ? opts : null;
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("money.new_title", { operation: t(`money.op.${operation}` as MessageKey) })} />
+      <PageHeader back={`/dengi/${cashPage}`} title={t("money.new_title", { operation: t(`money.op.${operation}` as MessageKey) })} />
     </StickyToolbar>
   );
   if (fail) {
@@ -44,6 +44,7 @@ export default async function NewCashOperationPage({ searchParams }: PageProps<"
     <>
       {header}
       <CashForm
+        cancelHref={`/dengi/${cashPage}`}
         page={cashPage}
         operation={operation}
         options={(opts as { data: CashFormOptions }).data}

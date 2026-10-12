@@ -38,6 +38,12 @@ export const apiPatch = withBody("PATCH");
 export const apiDelete = withBody("DELETE");
 
 
+/** `?from=..&to=..` of a page's searchParams — a detail page's back link returns to the list's period. */
+export function periodQs(sp: Record<string, string | string[] | undefined>): string {
+  const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+  return qs({ from: one(sp.from), to: one(sp.to) });
+}
+
 /** `?from=..&to=..` plus extra params, skipping empty values. */
 export function qs(params: Record<string, string | undefined>): string {
   const p = new URLSearchParams();

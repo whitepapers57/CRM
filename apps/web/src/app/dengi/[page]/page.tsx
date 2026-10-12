@@ -53,7 +53,7 @@ export default async function CashListPage({ params, searchParams }: PageProps<"
   const isIn = cashPage.endsWith("-in");
   const title = t(`money.${cashPage}` as MessageKey);
   const header = (
-    <PageHeader title={title}>
+    <PageHeader back="/dengi" title={title}>
       <div className="flex flex-wrap items-center gap-2">
         {res.ok && (
           <CreateMenu
@@ -134,7 +134,7 @@ export default async function CashListPage({ params, searchParams }: PageProps<"
                 <TableRow key={r.id} className={cn("relative", app && "hover:bg-muted/50", r.cancelled && "text-muted-foreground")}>
                   <TableCell className="whitespace-nowrap">
                     {app ? (
-                      <Link href={`/dengi/op/${encodeURIComponent(r.id)}`} className="after:absolute after:inset-0">{formatDate(r.date)}</Link>
+                      <Link href={`/dengi/op/${encodeURIComponent(r.id)}${qs({ from: q.from, to: q.to })}`} className="after:absolute after:inset-0">{formatDate(r.date)}</Link>
                     ) : (
                       formatDate(r.date)
                     )}

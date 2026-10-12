@@ -17,7 +17,7 @@ export default async function CategoriesPage() {
   const res = await apiGet<Category[]>("/cash/categories");
   const header = (
     <StickyToolbar>
-      <PageHeader title={t("money.categories")} />
+      <PageHeader back="/dengi" title={t("money.categories")} />
     </StickyToolbar>
   );
   if (!res.ok) return <>{header}<ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;

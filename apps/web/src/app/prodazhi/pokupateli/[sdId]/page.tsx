@@ -13,12 +13,12 @@ export default async function OutletStatementPage({ params, searchParams }: Page
   const from = typeof sp.from === "string" ? sp.from : undefined;
   const to = typeof sp.to === "string" ? sp.to : undefined;
   const res = await apiGet<OutletStatement>(`/outlets/${encodeURIComponent(sdId)}/statement${qs({ from, to })}`);
-  if (!res.ok) return <><StickyToolbar><PageHeader title={t("outlets.statement")}><PagePeriod from={from} to={to} /></PageHeader></StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
+  if (!res.ok) return <><StickyToolbar><PageHeader back={`/prodazhi/pokupateli${qs({ from, to })}`} title={t("outlets.statement")}><PagePeriod from={from} to={to} /></PageHeader></StickyToolbar><ApiError message={res.status === 0 ? t("errors.api_down") : res.message || t("errors.unknown")} /></>;
   const s = res.data;
 
   return (
     <>
-      <StickyToolbar><PageHeader title={s.outlet.name} subtitle={[t("outlets.statement"), s.outlet.firmName, s.outlet.inn && `${t("outlets.inn")} ${s.outlet.inn}`].filter(Boolean).join(" · ")}>
+      <StickyToolbar><PageHeader back={`/prodazhi/pokupateli${qs({ from, to })}`} title={s.outlet.name} subtitle={[t("outlets.statement"), s.outlet.firmName, s.outlet.inn && `${t("outlets.inn")} ${s.outlet.inn}`].filter(Boolean).join(" · ")}>
         <PagePeriod from={from} to={to} />
       </PageHeader></StickyToolbar>
       <StatementTable

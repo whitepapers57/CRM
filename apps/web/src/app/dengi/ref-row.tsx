@@ -110,6 +110,10 @@ export function AddRef({ kind, categoryKind, locale }: { kind: Kind; categoryKin
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const busy = useRef(false);
+  const clear = () => {
+    setName("");
+    setError(null);
+  };
   const add = () => {
     if (busy.current) return;
     if (!name.trim()) {
@@ -141,12 +145,18 @@ export function AddRef({ kind, categoryKind, locale }: { kind: Kind; categoryKin
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") add();
+          if (e.key === "Escape") clear();
         }}
       />
       <Button onClick={add} disabled={pending} className="mt-5 active:scale-95">
         {pending && <Spinner />}
         {t("refs.add")}
       </Button>
+      {name && (
+        <Button variant="outline" onClick={clear} disabled={pending} className="mt-5 active:scale-95">
+          {t("common.cancel")}
+        </Button>
+      )}
     </div>
   );
 }

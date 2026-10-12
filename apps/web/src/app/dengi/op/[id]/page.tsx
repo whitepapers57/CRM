@@ -8,7 +8,7 @@ import { Text } from "@/components/app/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLocale, getT } from "@/i18n/server";
 import type { MessageKey } from "@/i18n/messages";
-import { apiGet, type AuditEntry, type CashOperationDetail } from "@/lib/api";
+import { apiGet, periodQs, type AuditEntry, type CashOperationDetail } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
 import { cashNames } from "@/lib/cash-names";
@@ -23,10 +23,11 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default async function CashOperationPage({ params }: PageProps<"/dengi/op/[id]">) {
+export default async function CashOperationPage({ params, searchParams }: PageProps<"/dengi/op/[id]">) {
   const t = await getT();
   const locale = await getLocale();
   const { id } = await params;
+  const period = periodQs(await searchParams);
   const [res, history] = await Promise.all([
     apiGet<CashOperationDetail>(`/cash/operations/${encodeURIComponent(id)}`),
     apiGet<AuditEntry[]>(`/cash/operations/${encodeURIComponent(id)}/history`),
@@ -34,7 +35,7 @@ export default async function CashOperationPage({ params }: PageProps<"/dengi/op
   if (!res.ok) {
     return (
       <>
-        <StickyToolbar><PageHeader title={t("nav.money")} /></StickyToolbar>
+        <StickyToolbar><PageHeader back="/dengi" title={t("nav.money")} /></StickyToolbar>
         <ApiError message={res.status === 0 ? t("errors.api_down") : res.status === 404 ? t("money.not_found") : res.message || t("errors.unknown")} />
       </>
     );
@@ -46,7 +47,7 @@ export default async function CashOperationPage({ params }: PageProps<"/dengi/op
   return (
     <>
       <StickyToolbar>
-        <PageHeader title={t("money.op_title", { operation: opName, number: o.number, date: formatDate(o.date) })}>
+        <PageHeader back={`/dengi/${o.account}-${o.direction}${period}`} title={t("money.op_title", { operation: opName, number: o.number, date: formatDate(o.date) })}>
           <div className="flex flex-wrap items-center gap-2">
             <HistoryButton label={t("history.open")}>
               <HistoryList bare entries={history.ok ? history.data : []} names={names} />

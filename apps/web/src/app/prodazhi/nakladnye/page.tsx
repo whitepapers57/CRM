@@ -30,7 +30,7 @@ export default async function SalesInvoicesPage({ searchParams }: PageProps<"/pr
   const q = { from: get("from"), to: get("to"), status, warehouse: get("warehouse"), agent: get("agent"), search: get("search") };
   const res = await apiGet<SalesOrderList>(`/sales/orders${qs({ ...q, status: status === ALL ? undefined : status })}`);
   const header = (
-    <PageHeader title={t("nav.sales_invoices")}>
+    <PageHeader back="/prodazhi" title={t("nav.sales_invoices")}>
       <PagePeriod from={q.from} to={q.to} />
     </PageHeader>
   );

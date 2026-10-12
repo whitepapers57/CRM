@@ -16,7 +16,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/zakupk
   const to = typeof sp.to === "string" ? sp.to : undefined;
   const res = await apiGet<SupplierList>(`/suppliers${qs({ from, to })}`);
   const header = (
-    <PageHeader title={t("nav.suppliers")}>
+    <PageHeader back="/zakupki" title={t("nav.suppliers")}>
       <PagePeriod from={from} to={to} />
     </PageHeader>
   );

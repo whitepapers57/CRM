@@ -8,7 +8,7 @@ import { Text } from "@/components/app/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getLocale, getT } from "@/i18n/server";
-import { apiGet, type AuditEntry, type FormOptions, type PurchaseDetail } from "@/lib/api";
+import { apiGet, periodQs, type AuditEntry, type FormOptions, type PurchaseDetail } from "@/lib/api";
 import { formatDate, formatDateTime, formatQty } from "@/lib/format";
 import { tashkentInstant } from "@/lib/month-label";
 import { ReceiptActions } from "./receipt-actions";
@@ -22,10 +22,11 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default async function ReceiptPage({ params }: PageProps<"/zakupki/nakladnye/[sdId]">) {
+export default async function ReceiptPage({ params, searchParams }: PageProps<"/zakupki/nakladnye/[sdId]">) {
   const t = await getT();
   const locale = await getLocale();
   const { sdId } = await params;
+  const back = `/zakupki/nakladnye${periodQs(await searchParams)}`;
   const [res, history, opts] = await Promise.all([
     apiGet<PurchaseDetail>(`/warehouse/purchases/${encodeURIComponent(sdId)}`),
     apiGet<AuditEntry[]>(`/warehouse/purchases/${encodeURIComponent(sdId)}/history`),
@@ -34,7 +35,7 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
   if (!res.ok) {
     return (
       <>
-        <StickyToolbar><PageHeader title={t("nav.receipts")} /></StickyToolbar>
+        <StickyToolbar><PageHeader back={back} title={t("nav.receipts")} /></StickyToolbar>
         <ApiError message={res.status === 0 ? t("errors.api_down") : res.status === 404 ? t("zakupki.not_found") : res.message || t("errors.unknown")} />
       </>
     );
@@ -46,7 +47,7 @@ export default async function ReceiptPage({ params }: PageProps<"/zakupki/naklad
   return (
     <>
       <StickyToolbar>
-        <PageHeader title={t("zakupki.receipt_title", { number: p.sdId, date: formatDate(p.date) })}>
+        <PageHeader back={back} title={t("zakupki.receipt_title", { number: p.sdId, date: formatDate(p.date) })}>
           <div className="flex flex-wrap items-center gap-2">
             <HistoryButton label={t("history.open")}>
               <HistoryList bare entries={history.ok ? history.data : []} names={names} />

@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MessageKey } from "@/i18n/messages";
 import { getT } from "@/i18n/server";
-import { apiGet, type SalesOrder } from "@/lib/api";
+import { apiGet, periodQs, type SalesOrder } from "@/lib/api";
 import { formatDate, formatDateTime, formatQty } from "@/lib/format";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -22,14 +22,15 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /** One расходная накладная (a Salesdoc order), read-only. */
-export default async function SalesInvoicePage({ params }: PageProps<"/prodazhi/nakladnye/[sdId]">) {
+export default async function SalesInvoicePage({ params, searchParams }: PageProps<"/prodazhi/nakladnye/[sdId]">) {
   const t = await getT();
   const { sdId } = await params;
+  const back = `/prodazhi/nakladnye${periodQs(await searchParams)}`;
   const res = await apiGet<SalesOrder>(`/sales/orders/${encodeURIComponent(sdId)}`);
   if (!res.ok) {
     return (
       <>
-        <StickyToolbar><PageHeader title={t("nav.sales_invoices")} /></StickyToolbar>
+        <StickyToolbar><PageHeader back={back} title={t("nav.sales_invoices")} /></StickyToolbar>
         <ApiError message={res.status === 0 ? t("errors.api_down") : res.status === 404 ? t("zakupki.not_found") : res.message || t("errors.unknown")} />
       </>
     );
@@ -40,7 +41,7 @@ export default async function SalesInvoicePage({ params }: PageProps<"/prodazhi/
   return (
     <>
       <StickyToolbar>
-        <PageHeader title={t("sales.invoice_title", { number: o.sdId, date: formatDate(o.date) })}>
+        <PageHeader back={back} title={t("sales.invoice_title", { number: o.sdId, date: formatDate(o.date) })}>
           <Badge variant={o.status === 5 ? "destructive" : "secondary"}>{t(`sales.status.${o.status}` as MessageKey)}</Badge>
         </PageHeader>
       </StickyToolbar>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { DateField } from "@/components/app/date-field";
@@ -7,12 +8,13 @@ import { Field } from "@/components/app/field";
 import { ProductPicker } from "@/components/app/product-picker";
 import { Select } from "@/components/app/select";
 import { Text } from "@/components/app/text";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { CashFormOptions, CashPage } from "@/lib/api";
 import { DEPOSIT, cleanAmount, needsOf, parseAmountInput } from "@/lib/cash-ops";
 import { dateProblem, decimals } from "@/lib/receipt-rules";
+import { cn } from "@/lib/utils";
 import { saveCash } from "./actions";
 
 const DATA_START = "2026-09-01";
@@ -40,6 +42,7 @@ export function CashForm({
   closedMonths,
   today,
   locale,
+  cancelHref,
 }: {
   page: CashPage;
   operation: string;
@@ -50,6 +53,8 @@ export function CashForm({
   closedMonths: string[];
   today: string;
   locale: Locale;
+  /** Where «Отмена» leads without saving. */
+  cancelHref: string;
 }) {
   const t = (key: MessageKey, vars?: Record<string, string>) => translate(locale, key, vars);
   const router = useRouter();
@@ -198,11 +203,18 @@ export function CashForm({
       <Field label={t("money.comment")} value={comment} onChange={(e) => setComment(e.target.value)} />
 
       {serverError && <Text role="alert" variant="error">{serverError}</Text>}
-      <div>
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending} className="active:scale-95">
           {pending && <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />}
           {t("money.save")}
         </Button>
+        <Link
+          href={cancelHref}
+          aria-disabled={pending || undefined}
+          className={cn(buttonVariants({ variant: "outline" }), "active:scale-95", pending && "pointer-events-none opacity-50")}
+        >
+          {t("common.cancel")}
+        </Link>
       </div>
     </form>
   );
