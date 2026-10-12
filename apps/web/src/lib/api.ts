@@ -240,3 +240,11 @@ export interface CashFormOptions {
   expenseCategories: Array<{ id: string; name: string }>;
   incomeCategories: Array<{ id: string; name: string }>;
 }
+
+// Кадры (12 Oct 2026)
+export interface KadryDepartment { id: string; name: string; sortOrder: number; headEmployeeId: string | null; headName: string | null; employeeCount: number }
+export interface KadryPosition { id: string; name: string; departmentId: string | null; departmentName: string | null; description: string | null; sortOrder: number; startTime: string | null; workdays: number[]; employeeCount: number }
+export interface KadryStructure { departments: KadryDepartment[]; positions: KadryPosition[] }
+export interface KadryReason { id: string; label: string; sortOrder: number; active: boolean }
+export interface KadryBirthday { id: string; name: string; day: number; daysLeft: number; turnsAge: number | null }
+export interface KadryMetrics { headcount: number; averageAge: number | null; male: number; female: number; averageTenureMonths: number | null; turnoverPercent: number | null; dismissed12m: number }
