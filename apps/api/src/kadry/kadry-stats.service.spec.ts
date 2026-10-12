@@ -50,4 +50,31 @@ describe('KadryStatsService', () => {
     expect(b.map((x) => [x.name, x.daysLeft, x.turnsAge])).toEqual([['later И', 0, 42], ['leap И', 0, 27], ['today И', 0, 37]]);
     expect(await svc.birthdays('2026-12-31')).toEqual([]);
   });
+
+  it('birthdays respect month ends: only this month, only from today on', async () => {
+    await person('last', { birthDate: '1990-10-31' });
+    await person('nov', { birthDate: '1991-11-01' });
+    await person('sep', { birthDate: '1992-09-30' });
+    expect((await svc.birthdays('2026-10-31')).map((x) => [x.name, x.daysLeft, x.turnsAge])).toEqual([['last И', 0, 36]]);
+    await person('five', { birthDate: '1980-10-05' });
+    await person('twenty', { birthDate: '1970-10-20' });
+    expect((await svc.birthdays('2026-10-01')).map((x) => [x.name, x.daysLeft, x.turnsAge])).toEqual([['five И', 4, 46], ['twenty И', 19, 56], ['last И', 30, 36]]);
+  });
+
+  it('reads terminatedAt as a Tashkent day (20:00 UTC is already the next day)', async () => {
+    await person('stay', { hiredAt: '2020-01-01' });
+    await db.employee.create({
+      data: { id: 'gone', lastName: 'gone', firstName: 'И', name: 'gone И', createdById: 'u1', status: 'terminated', hiredAt: new Date('2020-01-01T00:00:00Z'), terminatedAt: new Date('2025-10-12T20:00:00Z') },
+    });
+    // 13 Oct 2025 in Tashkent is inside (12 Oct 2025, 12 Oct 2026]; begin = 1 − 0 + 1 = 2; 1 / 1.5 = 66.7 %
+    expect(await svc.metrics('2026-10-12')).toMatchObject({ headcount: 1, dismissed12m: 1, turnoverPercent: 66.7 });
+  });
+
+  it('counts whole months only: the day of the month matters', async () => {
+    await person('a', { hiredAt: '2026-08-20' });
+    expect((await svc.metrics('2026-10-12')).averageTenureMonths).toBe(1);
+    await truncateAll(db);
+    await person('b', { hiredAt: '2026-08-12' });
+    expect((await svc.metrics('2026-10-12')).averageTenureMonths).toBe(2);
+  });
 });
