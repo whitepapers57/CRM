@@ -36,6 +36,32 @@ describe('StructureService', () => {
     await expect(svc.saveReason(null, { label: 'ПЕРЕЕЗД' }, user)).rejects.toThrow('Такая причина уже есть');
   });
 
+  it('duplicate conflicts carry a field and a code (2026-10-12)', async () => {
+    const field = async (p: Promise<unknown>) => p.then(() => null, (e) => (e as { getResponse(): unknown }).getResponse());
+    const a = await svc.saveDepartment(null, { name: 'Склад' }, user);
+    expect(await field(svc.saveDepartment(null, { name: 'склад' }, user))).toMatchObject({ message: 'Отдел с таким названием уже есть', field: 'name', code: 'duplicate_department' });
+    await svc.savePosition(null, { name: 'Водитель', departmentId: a.id }, user);
+    expect(await field(svc.savePosition(null, { name: 'водитель', departmentId: a.id }, user))).toMatchObject({ message: 'Такая должность в этом отделе уже есть', field: 'name', code: 'duplicate_position' });
+    await svc.saveReason(null, { label: 'Переезд' }, user);
+    expect(await field(svc.saveReason(null, { label: 'переезд' }, user))).toMatchObject({ message: 'Такая причина уже есть', field: 'label', code: 'duplicate_reason' });
+  });
+
+  it('delete refusal mentions how many of the staff are dismissed (2026-10-12)', async () => {
+    const d = await svc.saveDepartment(null, { name: 'Склад' }, user);
+    const p = await svc.savePosition(null, { name: 'Кладовщик', departmentId: d.id }, user);
+    await emp('e1', d.id, p.id);
+    await emp('e2', d.id, p.id, 'terminated');
+    await emp('e3', d.id, p.id, 'terminated');
+    await expect(svc.deletePosition(p.id, user)).rejects.toThrow('на этой должности 3 сотрудник(ов) (из них уволенных 2)');
+    await db.employee.update({ where: { id: 'e1' }, data: { positionId: null } });
+    await db.employee.updateMany({ where: { id: { in: ['e2', 'e3'] } }, data: { positionId: null } });
+    await db.position.delete({ where: { id: p.id } });
+    await expect(svc.deleteDepartment(d.id, user)).rejects.toThrow('в отделе 3 сотрудник(ов) (из них уволенных 2)');
+    await db.employee.update({ where: { id: 'e1' }, data: { status: 'terminated' } });
+    await db.employee.updateMany({ where: { id: { in: ['e2', 'e3'] } }, data: { departmentId: null } });
+    await expect(svc.deleteDepartment(d.id, user)).rejects.toThrow('в отделе 1 сотрудник(ов) (из них уволенных 1)');
+  });
+
   it('validates names, times and weekdays', async () => {
     await expect(svc.saveDepartment(null, { name: ' ' }, user)).rejects.toThrow('Введите название');
     await expect(svc.savePosition(null, { name: 'X', startTime: '25:00' }, user)).rejects.toThrow('Неверное время');

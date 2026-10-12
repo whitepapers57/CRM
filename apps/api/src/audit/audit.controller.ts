@@ -1,6 +1,7 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { AuditService } from './audit.service.js';
 
+// 2026-10-12: was const PREFIXES = ['purchase.', 'month.', 'cash.'];
 const PREFIXES = ['purchase.', 'month.', 'cash.', 'hr.emp.', 'hr.struct.', 'hr.reason.'];
 
 @Controller('audit')

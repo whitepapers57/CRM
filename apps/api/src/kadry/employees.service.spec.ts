@@ -39,6 +39,8 @@ describe('EmployeesService', () => {
     const b = await svc.create({ lastName: 'Нурдинов', firstName: 'Илхомжон' }, user);
     await expect(svc.update(b.id, { lastName: 'Нурдинов', firstName: 'Илхомжон', pinfl: '30101990123456' }, user)).rejects.toThrow('Сотрудник с таким ПИНФЛ уже есть');
     await expect(svc.create({ ...base, pinfl: '30101990123456' }, user)).rejects.toThrow('Сотрудник с таким ПИНФЛ уже есть');
+    const dup = await svc.create({ ...base, pinfl: '30101990123456' }, user).then(() => null, (e) => (e as { getResponse(): unknown }).getResponse());
+    expect(dup).toMatchObject({ message: 'Сотрудник с таким ПИНФЛ уже есть', field: 'pinfl', code: 'duplicate_pinfl' });
     await expect(svc.update(b.id, { ...base, departmentId: 'nope' }, user)).rejects.toThrow('Отдел не найден');
     await expect(svc.update(b.id, { ...base, positionId: 'nope' }, user)).rejects.toThrow('Должность не найдена');
     await svc.update(a.id, { ...base, pinfl: '30101990123456', salary: 7000000 }, user);

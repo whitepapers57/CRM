@@ -51,7 +51,7 @@ export class EmployeesService {
     try {
       return await fn();
     } catch (e) {
-      if (isUnique(e)) throw new ConflictException('Сотрудник с таким ПИНФЛ уже есть');
+      if (isUnique(e)) throw new ConflictException({ message: 'Сотрудник с таким ПИНФЛ уже есть', field: 'pinfl', code: 'duplicate_pinfl' });
       throw e;
     }
   }

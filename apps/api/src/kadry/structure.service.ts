@@ -55,7 +55,7 @@ export class StructureService {
         return { id: d.id };
       });
     } catch (e) {
-      if (isUnique(e)) throw new ConflictException('Отдел с таким названием уже есть');
+      if (isUnique(e)) throw new ConflictException({ message: 'Отдел с таким названием уже есть', field: 'name', code: 'duplicate_department' });
       throw e;
     }
   }
@@ -64,7 +64,9 @@ export class StructureService {
     const d = await this.prisma.department.findUnique({ where: { id } });
     if (!d) throw new NotFoundException('Не найдено');
     const people = await this.prisma.employee.count({ where: { departmentId: id } });
-    if (people) throw new ConflictException(`Нельзя удалить — в отделе ${people} сотрудник(ов). Переведите их в другой отдел или снимите назначение.`);
+    // 2026-10-12: the table lists working staff only, so say how many of the blockers are dismissed.
+    const gone = people ? await this.prisma.employee.count({ where: { departmentId: id, status: 'terminated' } }) : 0;
+    if (people) throw new ConflictException(`Нельзя удалить — в отделе ${people} сотрудник(ов)${gone ? ` (из них уволенных ${gone})` : ''}. Переведите их в другой отдел или снимите назначение.`);
     const positions = await this.prisma.position.count({ where: { departmentId: id } });
     if (positions) throw new ConflictException(`Нельзя удалить — в отделе ${positions} должност(ей). Перенесите их в другой отдел или удалите.`);
     await this.prisma.$transaction(async (tx) => {
@@ -101,7 +103,7 @@ export class StructureService {
         return { id: p.id };
       });
     } catch (e) {
-      if (isUnique(e)) throw new ConflictException('Такая должность в этом отделе уже есть');
+      if (isUnique(e)) throw new ConflictException({ message: 'Такая должность в этом отделе уже есть', field: 'name', code: 'duplicate_position' });
       throw e;
     }
   }
@@ -110,7 +112,9 @@ export class StructureService {
     const p = await this.prisma.position.findUnique({ where: { id } });
     if (!p) throw new NotFoundException('Не найдено');
     const people = await this.prisma.employee.count({ where: { positionId: id } });
-    if (people) throw new ConflictException(`Нельзя удалить — на этой должности ${people} сотрудник(ов). Переведите их на другую должность или снимите её.`);
+    // 2026-10-12: see deleteDepartment.
+    const gone = people ? await this.prisma.employee.count({ where: { positionId: id, status: 'terminated' } }) : 0;
+    if (people) throw new ConflictException(`Нельзя удалить — на этой должности ${people} сотрудник(ов)${gone ? ` (из них уволенных ${gone})` : ''}. Переведите их на другую должность или снимите её.`);
     await this.prisma.$transaction(async (tx) => {
       await tx.position.delete({ where: { id } });
       await this.audit.record(tx, { user, action: 'hr.struct.position.delete', target: id, before: p });
@@ -135,7 +139,7 @@ export class StructureService {
         return { id: r.id };
       });
     } catch (e) {
-      if (isUnique(e)) throw new ConflictException('Такая причина уже есть');
+      if (isUnique(e)) throw new ConflictException({ message: 'Такая причина уже есть', field: 'label', code: 'duplicate_reason' });
       throw e;
     }
   }
