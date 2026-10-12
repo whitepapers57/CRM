@@ -248,3 +248,21 @@ export interface KadryStructure { departments: KadryDepartment[]; positions: Kad
 export interface KadryReason { id: string; label: string; sortOrder: number; active: boolean }
 export interface KadryBirthday { id: string; name: string; day: number; daysLeft: number; turnsAge: number | null }
 export interface KadryMetrics { headcount: number; averageAge: number | null; male: number; female: number; averageTenureMonths: number | null; turnoverPercent: number | null; dismissed12m: number }
+
+export interface KadryAccount { kind: "agent" | "expeditor" | "supervisor"; sdId: string; name: string }
+export interface KadryEmployeeRow { id: string; name: string; lastName: string; firstName: string; middleName: string | null; positionName: string | null; departmentName: string | null; status: "intern" | "active" | "terminated"; employmentType: string | null; hiredAt: string | null; accounts: KadryAccount[] }
+export type WorkSchedule = Record<string, { start: string; end: string }>;
+export interface KadryEmployee {
+  id: string; name: string; lastName: string; firstName: string; middleName: string | null;
+  phone: string | null; email: string | null; birthDate: string | null; birthPlace: string | null; nationality: string | null; citizenship: string | null;
+  gender: "male" | "female" | null; passportSeries: string | null; passportNumber: string | null; passportIssuedBy: string | null;
+  passportIssuedDate: string | null; passportValidUntil: string | null; pinfl: string | null; inn: string | null; address: string | null; educationLevel: string | null;
+  departmentId: string | null; departmentName: string | null; positionId: string | null; positionName: string | null;
+  positionSchedule: { startTime: string | null; workdays: number[] } | null;
+  employmentType: string | null; remote: boolean; workSchedule: WorkSchedule | null; rate: string; salary: number | null;
+  hiredAt: string | null; orderNumber: string | null; orderDate: string | null; experienceMonths: number | null;
+  status: "intern" | "active" | "terminated"; terminatedAt: string | null; terminationReason: string | null; createdAt: string;
+  relatives: Array<{ id: string; relation: string; fullName: string | null; birthDate: string | null; workplacePosition: string | null; residenceAddress: string | null; phone: string | null }>;
+  diplomas: Array<{ id: string; degree: string | null; institution: string | null; specialty: string | null; enrolledYear: number | null; graduatedYear: number | null; seriesNumber: string | null; issuedDate: string | null; status: string | null }>;
+  accounts: KadryAccount[]; canDelete: boolean;
+}

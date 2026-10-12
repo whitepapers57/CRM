@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { apiDelete, apiPost, apiPut } from "@/lib/api";
+import type { EmployeeForm } from "@/lib/kadry-rules";
 
 type Result = { ok: boolean; message?: string };
 const done = (r: { ok: boolean; message?: string }): Result => {
@@ -29,4 +30,20 @@ export async function deletePosition(id: string) {
 }
 export async function saveReason(id: string | null, body: ReasonBody) {
   return done(await (id ? apiPut : apiPost)(path("/kadry/reasons", id), body));
+}
+
+// Employees. PUT is FULL REPLACE of the editable fields (status is not changed by it), so the form always carries every field.
+// "" goes out as null; numbers stay typed strings (the API strips spaces and accepts a decimal comma).
+function toBody(form: EmployeeForm, withStatus: boolean) {
+  const { status, workSchedule, remote, ...rest } = form;
+  const text = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.trim() === "" ? null : v.trim()]));
+  return { ...text, lastName: form.lastName.trim(), firstName: form.firstName.trim(), remote, workSchedule, ...(withStatus ? { status } : {}) };
+}
+export async function createEmployee(form: EmployeeForm): Promise<{ ok: boolean; id?: string; message?: string }> {
+  const r = await apiPost<{ id: string }>("/kadry/employees", toBody(form, true));
+  revalidatePath("/kadry", "layout");
+  return r.ok ? { ok: true, id: r.data.id } : { ok: false, message: r.message };
+}
+export async function updateEmployee(id: string, form: EmployeeForm): Promise<Result> {
+  return done(await apiPut(path("/kadry/employees", id), toBody(form, false)));
 }
