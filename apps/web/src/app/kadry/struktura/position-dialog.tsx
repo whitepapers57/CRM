@@ -9,6 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTitle, DialogTr
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { KadryPosition } from "@/lib/api";
+import { serverErrorKey } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { deletePosition, savePosition } from "../actions";
 import { DeleteConfirm } from "./delete-confirm";
@@ -73,6 +74,7 @@ export function PositionDialog({
           workdays: [...days].sort((a, b) => a - b),
         });
         if (r.ok) setOpen(false);
+        else if (r.code === "duplicate_position" && serverErrorKey(r.code)) setNameError(t(serverErrorKey(r.code)!));
         else setError(r.message || t("errors.unknown"));
       } finally {
         busy.current = false;

@@ -51,8 +51,11 @@ export function SalesdocTab({
       try {
         setError(null);
         const r = await linkAccount(employeeId, kind, sdId);
-        if (r.ok) setSdId("");
-        else setError(r.message || t("errors.unknown"));
+        // 12 Oct 2026: the selection was kept after a failure and then showed the raw account id (AG1) once the list refreshed.
+        // if (r.ok) setSdId("");
+        // else setError(r.message || t("errors.unknown"));
+        setSdId("");
+        if (!r.ok) setError(r.message || t("errors.unknown"));
       } finally {
         busy.current = false;
       }

@@ -8,7 +8,7 @@ import { getT } from "@/i18n/server";
 import type { Locale } from "@/i18n/messages";
 import type { KadryEmployee } from "@/lib/api";
 import { formatDate, formatQty } from "@/lib/format";
-import { DEGREE_KEYS, DIPLOMA_STATUS_KEYS, labelFor, tenureLabel } from "@/lib/kadry-rules";
+import { DEGREE_KEYS, DIPLOMA_STATUS_KEYS, labelFor, orderLineKey, tenureLabel } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { DeleteDiploma, DiplomaDialog } from "./diploma-dialog";
 import { DeleteRelative, RelativeDialog } from "./relative-dialog";
@@ -63,7 +63,11 @@ export async function WorkTab({ e }: { e: KadryEmployee }) {
           <Item label={t("kadry.hired_at")} value={e.hiredAt ? formatDate(e.hiredAt) : null} />
           <Item
             label={t("kadry.order_number")}
-            value={e.orderNumber || e.orderDate ? t("kadry.order_line", { number: e.orderNumber ?? "—", date: date(e.orderDate) }) : null}
+            // 12 Oct 2026: value={e.orderNumber || e.orderDate ? t("kadry.order_line", { number: e.orderNumber ?? "—", date: date(e.orderDate) }) : null}
+            value={(() => {
+              const key = orderLineKey(e.orderNumber, e.orderDate);
+              return key ? t(key, { number: e.orderNumber ?? "", date: e.orderDate ? formatDate(e.orderDate) : "" }) : null;
+            })()}
           />
           <Item
             label={t("kadry.tenure")}

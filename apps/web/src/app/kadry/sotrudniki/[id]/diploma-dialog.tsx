@@ -139,7 +139,7 @@ export function DiplomaDialog({ employeeId, diploma, locale }: { employeeId: str
             />
           </div>
           <Field label={t("kadry.series_number")} value={series} autoComplete="off" onChange={(e) => setSeries(e.target.value)} />
-          <DateField clearable label={t("kadry.issued_date")} value={issued} onChange={setIssued} locale={locale} />
+          <DateField clearable label={t("kadry.issued_date")} value={issued} onChange={setIssued} yearPicker={{ fromYear: 1960, toYear: new Date().getFullYear() }} locale={locale} />
           {pick(t("kadry.diploma_status"), status, setStatus, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS)}
           {error && <Text role="alert" variant="error">{error}</Text>}
           <DialogFooter>

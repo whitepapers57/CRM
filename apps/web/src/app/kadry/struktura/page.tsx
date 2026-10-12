@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { MessageKey } from "@/i18n/messages";
 import { getLocale, getT } from "@/i18n/server";
 import { apiGet, type AuditEntry, type KadryStructure } from "@/lib/api";
+import { historyNames } from "@/lib/kadry-rules";
 import { DeleteDepartment, DepartmentDialog } from "./department-dialog";
 import { DeletePosition, PositionDialog } from "./position-dialog";
 
@@ -23,7 +24,7 @@ export default async function StructurePage() {
     <StickyToolbar>
       <PageHeader back="/kadry" title={t("kadry.structure")}>
         <HistoryButton label={t("history.open")}>
-          <HistoryList bare entries={history.ok ? history.data : []} />
+          <HistoryList bare entries={history.ok ? history.data : []} names={historyNames(res.ok ? res.data : null, null)} />
         </HistoryButton>
       </PageHeader>
     </StickyToolbar>

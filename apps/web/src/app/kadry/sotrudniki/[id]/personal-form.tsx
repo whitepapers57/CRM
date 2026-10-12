@@ -11,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
-import { EDUCATION_LEVELS, employeeProblems, GENDERS, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
+import { EDUCATION_LEVELS, employeeProblems, GENDERS, serverErrorKey, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { updateEmployee } from "../../actions";
 
@@ -59,7 +59,11 @@ export function PersonalForm({ employeeId, initial, locale, today, cancelHref }:
         if (r.ok) {
           router.push(cancelHref);
           router.refresh();
-        } else setMessage(r.message || t("errors.unknown"));
+        } else {
+          const key = serverErrorKey(r.code);
+          if (key && r.code === "duplicate_pinfl") setProblems((p) => ({ ...p, pinfl: key }));
+          else setMessage(key ? t(key) : r.message || t("errors.unknown"));
+        }
       } finally {
         busy.current = false;
       }
@@ -86,7 +90,7 @@ export function PersonalForm({ employeeId, initial, locale, today, cancelHref }:
       <Card>
         <CardHeader><CardTitle>{t("kadry.section.personal")}</CardTitle></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
-          <DateField clearable label={t("kadry.birth_date")} value={form.birthDate} onChange={(d) => set("birthDate", d)} error={err("birthDate")} locale={locale} />
+          <DateField clearable label={t("kadry.birth_date")} value={form.birthDate} onChange={(d) => set("birthDate", d)} yearPicker={{ fromYear: 1940, toYear: new Date().getFullYear() }} error={err("birthDate")} locale={locale} />
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">{t("kadry.gender")}</Label>
             <Select
@@ -126,8 +130,8 @@ export function PersonalForm({ employeeId, initial, locale, today, cancelHref }:
             onChange={(e) => set("passportNumber", e.target.value.replace(/\D/g, ""))}
           />
           <div className="sm:col-span-2">{text("passportIssuedBy", "kadry.passport_issued_by", { autoComplete: "off" })}</div>
-          <DateField clearable label={t("kadry.passport_issued_date")} value={form.passportIssuedDate} onChange={(d) => set("passportIssuedDate", d)} error={err("passportIssuedDate")} locale={locale} />
-          <DateField clearable label={t("kadry.passport_valid_until")} value={form.passportValidUntil} onChange={(d) => set("passportValidUntil", d)} error={err("passportValidUntil")} locale={locale} />
+          <DateField clearable label={t("kadry.passport_issued_date")} value={form.passportIssuedDate} onChange={(d) => set("passportIssuedDate", d)} yearPicker={{ fromYear: 1990, toYear: new Date().getFullYear() }} error={err("passportIssuedDate")} locale={locale} />
+          <DateField clearable label={t("kadry.passport_valid_until")} value={form.passportValidUntil} onChange={(d) => set("passportValidUntil", d)} yearPicker={{ fromYear: 1990, toYear: new Date().getFullYear() + 15 }} error={err("passportValidUntil")} locale={locale} />
         </CardContent>
       </Card>
       <Card>

@@ -17,6 +17,7 @@ export async function SectionPanel({ title, menu }: { title: string; menu: MenuG
         {menu.map((column, ci) => (
           <div key={ci} className="flex flex-col gap-6">
             {column.map((group) => (
+              // 2026-10-12: was <section key={group.title} className="flex flex-col gap-1">
               <section key={`${ci}-${group.title}`} className="flex flex-col gap-1">
                 <Text as="h2" variant="subtitle" className="mb-1 text-emerald-700 dark:text-emerald-400">
                   {t(group.title)}

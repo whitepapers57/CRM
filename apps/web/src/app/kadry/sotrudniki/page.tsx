@@ -12,10 +12,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MessageKey } from "@/i18n/messages";
-import { getT } from "@/i18n/server";
-import { apiGet, qs, type AuditEntry, type KadryEmployeeRow, type KadryMetrics, type KadryStructure } from "@/lib/api";
+import { getLocale, getT } from "@/i18n/server";
+import { apiGet, qs, type AuditEntry, type KadrySalesdocAccount, type KadryEmployeeRow, type KadryMetrics, type KadryStructure } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import { positionOptions, tenureLabel } from "@/lib/kadry-rules";
+import { historyNames, positionOptions, tenureLabel, yearsWord } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 
 const STATUSES = ["working", "terminated", "all"] as const;
@@ -35,15 +35,17 @@ function Metric({ title, value, hint, children }: { title: string; value: string
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/sotrudniki">) {
   const t = await getT();
+  const locale = await getLocale();
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const status = (STATUSES as readonly string[]).includes(get("status") ?? "") ? (get("status") as string) : "working";
   const q = { status, department: get("department"), position: get("position"), search: get("search")?.trim() || undefined };
-  const [res, structure, metrics, history] = await Promise.all([
+  const [res, structure, metrics, history, accounts] = await Promise.all([
     apiGet<KadryEmployeeRow[]>(`/kadry/employees${qs(q)}`),
     apiGet<KadryStructure>("/kadry/structure"),
     apiGet<KadryMetrics>("/kadry/metrics"),
     apiGet<AuditEntry[]>("/kadry/history/employees"),
+    apiGet<KadrySalesdocAccount[]>("/kadry/salesdoc-accounts"),
   ]);
   const rows = res.ok ? res.data : [];
   const entries = history.ok ? history.data : [];
@@ -60,7 +62,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/kadry/sotrudniki/new" className={cn(buttonVariants(), "active:scale-95")}>{t("kadry.create")}</Link>
         <HistoryButton label={t("history.open")}>
-          <HistoryList bare entries={entries} linkFor={linkFor} />
+          <HistoryList bare entries={entries} linkFor={linkFor} names={historyNames(structure.ok ? structure.data : null, accounts.ok ? accounts.data : null)} />
         </HistoryButton>
       </div>
     </PageHeader>
@@ -114,7 +116,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/kadry/
       {m && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <Metric title={t("kadry.m.headcount")} value={String(m.headcount)} hint={t("kadry.m.headcount_hint")} />
-          <Metric title={t("kadry.m.age")} value={m.averageAge == null ? "—" : String(Math.round(m.averageAge))} hint={m.averageAge == null ? noData : t("kadry.m.years")} />
+          <Metric title={t("kadry.m.age")} value={m.averageAge == null ? "—" : String(Math.round(m.averageAge))} // 12 Oct 2026: hint={m.averageAge == null ? noData : t("kadry.m.years")} (no plural: «24 лет»)
+          hint={m.averageAge == null ? noData : yearsWord(Math.round(m.averageAge), locale)} />
           <Metric title={t("kadry.m.gender")} value={sexTotal ? `${malePct}% / ${100 - malePct}%` : "—"} hint={sexTotal ? undefined : noData}>
             {sexTotal > 0 && (
               <>

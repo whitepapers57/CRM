@@ -4,6 +4,7 @@ import { getT } from "@/i18n/server";
 import type { AuditEntry } from "@/lib/api";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { changedCashFields, type CashSnapField } from "@/lib/cash-ops";
+import { DEGREE_KEYS, EMPLOYEE_DIFF_LABELS, changedFields, labelFor } from "@/lib/kadry-rules";
 import { monthLabel, tashkentInstant } from "@/lib/month-label";
 import { Text } from "./text";
 
@@ -59,6 +60,56 @@ function CashSnapshot({ s, fields, names, t }: { s: CashSnap; fields: CashSnapFi
   );
 }
 
+type Obj = Record<string, unknown>;
+const DATE_FIELDS = new Set(["birthDate", "passportIssuedDate", "passportValidUntil", "hiredAt", "orderDate"]);
+
+/** One value of an employee-edit diff, in the viewer's language; null is «—». */
+function empValue(field: string, v: unknown, names: Record<string, string>, t: (k: MessageKey) => string): string {
+  if (v == null || v === "") return "—";
+  if (DATE_FIELDS.has(field)) return formatDate(String(v));
+  if (field === "salary") return formatMoney(String(v));
+  if (field === "departmentId" || field === "positionId") return names[String(v)] ?? String(v);
+  if (typeof v === "boolean") return t(v ? "common.yes" : "common.no");
+  if (field === "gender") return t(`kadry.g.${v}` as MessageKey);
+  if (field === "employmentType") return t(`kadry.et.${v}` as MessageKey);
+  if (field === "educationLevel") return t(`kadry.edu.${v}` as MessageKey);
+  if (field === "workSchedule" && typeof v === "object") {
+    return Object.entries(v as Record<string, { start: string; end: string }>)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([d, h]) => `${t(`kadry.wd.${d}` as MessageKey)} ${h.start}–${h.end}`)
+      .join(", ");
+  }
+  return String(v);
+}
+
+/** What an `hr.*` entry changed: the record it names, or the employee fields that differ (before → after). */
+function HrDetails({ e, names, t }: { e: AuditEntry; names: Record<string, string>; t: (k: MessageKey) => string }) {
+  const a = (e.after ?? e.before ?? {}) as Obj;
+  const txt = (...parts: unknown[]) => parts.filter((p) => typeof p === "string" && p.trim()).join(" · ");
+  let line = "";
+  if (e.action.startsWith("hr.struct.")) line = txt(a.name);
+  else if (e.action === "hr.reason.save") line = txt(a.label);
+  else if (e.action.startsWith("hr.emp.relative.")) line = txt(a.relation ? t(`kadry.rel.${a.relation}` as MessageKey) : "", a.fullName);
+  else if (e.action.startsWith("hr.emp.diploma.")) line = txt(typeof a.degree === "string" ? labelFor(DEGREE_KEYS, a.degree, t) : "", a.institution);
+  else if (e.action.startsWith("hr.emp.salesdoc.") && typeof a.kind === "string") line = txt(t(`kadry.kind.${a.kind}` as MessageKey), names[`${a.kind}:${a.sdId}`] ?? String(a.sdId ?? ""));
+  if (line) return <Text variant="caption">{line}</Text>;
+  if (e.action === "hr.emp.edit") {
+    const diff = changedFields(e.before, e.after, Object.keys(EMPLOYEE_DIFF_LABELS));
+    if (diff.length === 0) return null;
+    return (
+      <ul className="ml-4 list-disc text-xs">
+        {diff.map((c) => (
+          <li key={c.field}>
+            <span className="text-muted-foreground">{t(EMPLOYEE_DIFF_LABELS[c.field])}: </span>
+            {empValue(c.field, c.before, names, t)} → {empValue(c.field, c.after, names, t)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return null;
+}
+
 /**
  * Append-only history, newest first. `names` maps sdIds (warehouse, supplier, product) to names.
  * `linkFor` maps an entry's target to a link (href + visible label, e.g. «№ d0_432»); `bare` drops the heading (a dialog has its own).
@@ -94,6 +145,7 @@ export async function HistoryList({
                 )}
               </div>
               {e.reason && <Text variant="caption">{e.reason}</Text>}
+              {e.action.startsWith("hr.") && <HrDetails e={e} names={names} t={t} />}
               {e.action === "cash.edit" && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">

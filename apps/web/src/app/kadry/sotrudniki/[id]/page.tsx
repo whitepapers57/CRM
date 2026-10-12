@@ -8,9 +8,9 @@ import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
 import type { MessageKey } from "@/i18n/messages";
 import { getLocale, getT } from "@/i18n/server";
-import { apiGet, type AuditEntry, type KadryEmployee, type KadryReason, type KadrySalesdocAccount } from "@/lib/api";
+import { apiGet, type AuditEntry, type KadryEmployee, type KadryReason, type KadrySalesdocAccount, type KadryStructure } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import { ageYears } from "@/lib/kadry-rules";
+import { ageLabel, ageYears, historyNames } from "@/lib/kadry-rules";
 import { tashkentInstant } from "@/lib/month-label";
 import { tashkentToday } from "@/lib/today";
 import { cn } from "@/lib/utils";
@@ -32,11 +32,14 @@ export default async function EmployeeCardPage({ params, searchParams }: PagePro
   const sp = await searchParams;
   const tab: Tab = TABS.find((x) => x === sp.tab) ?? "work";
   const enc = encodeURIComponent(id);
-  const [res, history, reasons, sd] = await Promise.all([
+  const [res, history, reasons, sd, structure] = await Promise.all([
     apiGet<KadryEmployee>(`/kadry/employees/${enc}`),
     apiGet<AuditEntry[]>(`/kadry/employees/${enc}/history`),
     apiGet<KadryReason[]>("/kadry/reasons"),
-    tab === "salesdoc" ? apiGet<KadrySalesdocAccount[]>("/kadry/salesdoc-accounts") : Promise.resolve(null),
+    // 12 Oct 2026: was fetched on the Salesdoc tab only; the history names linked accounts on every tab.
+    // tab === "salesdoc" ? apiGet<KadrySalesdocAccount[]>("/kadry/salesdoc-accounts") : Promise.resolve(null),
+    apiGet<KadrySalesdocAccount[]>("/kadry/salesdoc-accounts"),
+    apiGet<KadryStructure>("/kadry/structure"),
   ]);
   if (!res.ok) {
     return (
@@ -56,7 +59,7 @@ export default async function EmployeeCardPage({ params, searchParams }: PagePro
     [t("kadry.position"), e.positionName ?? "—"],
     [t("kadry.department"), e.departmentName ?? "—"],
     [t("kadry.pinfl"), e.pinfl ?? "—"],
-    [t("kadry.age"), age == null ? "—" : String(age)],
+    [t("kadry.age"), age == null ? "—" : ageLabel(age, locale)],
     [t("kadry.hired_at"), e.hiredAt ? formatDate(e.hiredAt) : "—"],
   ];
   return (
@@ -66,7 +69,7 @@ export default async function EmployeeCardPage({ params, searchParams }: PagePro
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={e.status === "terminated" ? "outline" : e.status === "intern" ? "secondary" : "default"}>{t(`kadry.status.${e.status}` as MessageKey)}</Badge>
             <HistoryButton label={t("history.open")}>
-              <HistoryList bare entries={history.ok ? history.data : []} />
+              <HistoryList bare entries={history.ok ? history.data : []} names={historyNames(structure.ok ? structure.data : null, sd.ok ? sd.data : null)} />
             </HistoryButton>
             <StatusActions id={e.id} name={e.name} status={e.status} canDelete={e.canDelete} reasons={activeReasons} locale={locale} />
           </div>

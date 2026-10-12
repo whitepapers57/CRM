@@ -163,3 +163,76 @@ export function positionOptions(
   const list = shown.some((p) => p.id === selectedId) ? shown : [...shown, ...all.filter((p) => p.id === selectedId)];
   return list.map((p) => ({ value: p.id, label: (counts.get(p.name) ?? 0) > 1 && p.departmentName ? `${p.name} (${p.departmentName})` : p.name }));
 }
+
+/** Russian years word for a number: 1 год, 2-4 года, 5+ / 11-14 лет. Uzbek has one form: yosh. */
+export function yearsWord(n: number, locale: "ru" | "uz"): string {
+  if (locale === "uz") return "yosh";
+  const a = Math.abs(Math.trunc(n));
+  const last = a % 10;
+  if (a % 100 >= 11 && a % 100 <= 14) return "лет";
+  if (last === 1) return "год";
+  if (last >= 2 && last <= 4) return "года";
+  return "лет";
+}
+/** «24 года», «21 год», «25 лет»; «24 yosh». */
+export const ageLabel = (n: number, locale: "ru" | "uz") => `${n} ${yearsWord(n, locale)}`;
+
+/** Message key for a known server conflict `code` (a duplicate), shown under its field; null for unknown codes. */
+const SERVER_ERROR_KEYS: Record<string, MessageKey> = {
+  duplicate_pinfl: "kadry.err.duplicate_pinfl",
+  duplicate_department: "kadry.err.duplicate_department",
+  duplicate_position: "kadry.err.duplicate_position",
+  duplicate_reason: "kadry.err.duplicate_reason",
+};
+export const serverErrorKey = (code: string | undefined): MessageKey | null => (code ? SERVER_ERROR_KEYS[code] ?? null : null);
+
+/** Which of «№ 12 от 12.10.2026», «№ 12», «от 12.10.2026» to print; null when neither is set. */
+export function orderLineKey(number: string | null | undefined, date: string | null | undefined): MessageKey | null {
+  const n = (number ?? "").trim();
+  const d = (date ?? "").trim();
+  if (n && d) return "kadry.order_line";
+  if (n) return "kadry.order_line_number";
+  if (d) return "kadry.order_line_date";
+  return null;
+}
+
+/** The employee fields the history diff lists, in card order, with their labels. */
+export const EMPLOYEE_DIFF_LABELS: Record<string, MessageKey> = {
+  lastName: "kadry.last_name", firstName: "kadry.first_name", middleName: "kadry.middle_name",
+  phone: "kadry.phone", email: "kadry.email",
+  birthDate: "kadry.birth_date", birthPlace: "kadry.birth_place", nationality: "kadry.nationality", citizenship: "kadry.citizenship", gender: "kadry.gender",
+  passportSeries: "kadry.passport_series", passportNumber: "kadry.passport_number", passportIssuedBy: "kadry.passport_issued_by",
+  passportIssuedDate: "kadry.passport_issued_date", passportValidUntil: "kadry.passport_valid_until",
+  pinfl: "kadry.pinfl", inn: "kadry.inn", address: "kadry.address", educationLevel: "kadry.education_level",
+  departmentId: "kadry.department", positionId: "kadry.position", employmentType: "kadry.employment_type", remote: "kadry.remote",
+  workSchedule: "kadry.schedule", rate: "kadry.rate", salary: "kadry.salary",
+  hiredAt: "kadry.hired_at", orderNumber: "kadry.order_number", orderDate: "kadry.order_date", experienceMonths: "kadry.experience",
+  status: "kadry.status",
+};
+
+export interface FieldChange { field: string; before: unknown; after: unknown }
+const norm = (v: unknown) => (v === undefined || v === null || (typeof v === "string" && v.trim() === "") ? null : v);
+/** Only the `fields` whose value differs between two snapshots, in `fields` order; empty / missing values are null (shown as «—»). */
+export function changedFields(before: unknown, after: unknown, fields: readonly string[]): FieldChange[] {
+  const b = (before ?? {}) as Record<string, unknown>;
+  const a = (after ?? {}) as Record<string, unknown>;
+  const out: FieldChange[] = [];
+  for (const field of fields) {
+    const x = norm(b[field]);
+    const y = norm(a[field]);
+    if (JSON.stringify(x) !== JSON.stringify(y)) out.push({ field, before: x, after: y });
+  }
+  return out;
+}
+
+/** Names for the history lists: department / position ids by id, Salesdoc accounts by `kind:sdId`. */
+export function historyNames(
+  structure: { departments: Array<{ id: string; name: string }>; positions: Array<{ id: string; name: string }> } | null | undefined,
+  accounts: Array<{ kind: string; sdId: string; name: string }> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of structure?.departments ?? []) out[d.id] = d.name;
+  for (const p of structure?.positions ?? []) out[p.id] = p.name;
+  for (const a of accounts ?? []) out[`${a.kind}:${a.sdId}`] = a.name;
+  return out;
+}

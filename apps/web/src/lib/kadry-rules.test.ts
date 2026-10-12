@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEGREES, DEGREE_KEYS, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS, ageYears, employeeProblems, positionOptions, scheduleProblem, tenureLabel } from "./kadry-rules";
+import { DEGREES, DEGREE_KEYS, DIPLOMA_STATUSES, DIPLOMA_STATUS_KEYS, ageLabel, ageYears, changedFields, EMPLOYEE_DIFF_LABELS, employeeProblems, historyNames, orderLineKey, serverErrorKey, yearsWord, positionOptions, scheduleProblem, tenureLabel } from "./kadry-rules";
 
 const today = "2026-10-12";
 const base = { lastName: "Нишонов", firstName: "Шоядбек" };
@@ -57,4 +57,47 @@ test("position options: selected one stays, repeated names get their department"
 test("every diploma degree and status has a message key", () => {
   for (const d of DEGREES) assert.ok(DEGREE_KEYS[d], d);
   for (const d of DIPLOMA_STATUSES) assert.ok(DIPLOMA_STATUS_KEYS[d], d);
+});
+
+test("Russian year plurals and the Uzbek yosh", () => {
+  const ru = (n: number) => ageLabel(n, "ru");
+  assert.deepEqual([1, 2, 4, 5, 11, 12, 14, 20, 21, 22, 24, 25, 101, 111].map(ru), ["1 год", "2 года", "4 года", "5 лет", "11 лет", "12 лет", "14 лет", "20 лет", "21 год", "22 года", "24 года", "25 лет", "101 год", "111 лет"]);
+  assert.equal(yearsWord(24, "ru"), "года");
+  assert.equal(ageLabel(24, "uz"), "24 yosh");
+});
+
+test("known server codes map to a message key, unknown ones to null", () => {
+  assert.equal(serverErrorKey("duplicate_pinfl"), "kadry.err.duplicate_pinfl");
+  assert.equal(serverErrorKey("duplicate_department"), "kadry.err.duplicate_department");
+  assert.equal(serverErrorKey("duplicate_position"), "kadry.err.duplicate_position");
+  assert.equal(serverErrorKey("duplicate_reason"), "kadry.err.duplicate_reason");
+  assert.equal(serverErrorKey("something_else"), null);
+  assert.equal(serverErrorKey(undefined), null);
+});
+
+test("the order line prints what is there", () => {
+  assert.equal(orderLineKey("12", "2026-10-12"), "kadry.order_line");
+  assert.equal(orderLineKey("12", null), "kadry.order_line_number");
+  assert.equal(orderLineKey(null, "2026-10-12"), "kadry.order_line_date");
+  assert.equal(orderLineKey(" ", ""), null);
+  assert.equal(orderLineKey(undefined, undefined), null);
+});
+
+test("history diff lists changed fields only, empty as null", () => {
+  const fields = Object.keys(EMPLOYEE_DIFF_LABELS);
+  assert.deepEqual(changedFields({ salary: 100, phone: "1", hiredAt: "2026-01-01", email: "" }, { salary: 200, phone: "1", hiredAt: "2026-01-01", email: null }, fields), [{ field: "salary", before: 100, after: 200 }]);
+  assert.deepEqual(changedFields({ phone: null }, { phone: "9", remote: false }, fields), [
+    { field: "phone", before: null, after: "9" },
+    { field: "remote", before: null, after: false },
+  ]);
+  assert.deepEqual(changedFields({ workSchedule: { 1: { start: "09:00", end: "18:00" } } }, { workSchedule: null }, fields), [{ field: "workSchedule", before: { 1: { start: "09:00", end: "18:00" } }, after: null }]);
+  assert.deepEqual(changedFields(null, undefined, fields), []);
+});
+
+test("history names: departments, positions and Salesdoc accounts in one map", () => {
+  assert.deepEqual(
+    historyNames({ departments: [{ id: "d1", name: "Склад" }], positions: [{ id: "p1", name: "Кладовщик" }] }, [{ kind: "agent", sdId: "AG1", name: "Маршрут 1" }]),
+    { d1: "Склад", p1: "Кладовщик", "agent:AG1": "Маршрут 1" },
+  );
+  assert.deepEqual(historyNames(null, undefined), {});
 });

@@ -3,13 +3,15 @@ import { SectionPanel } from "@/components/app/section-panel";
 import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import { apiGet, type KadryBirthday } from "@/lib/api";
 import { KADRY_MENU } from "@/lib/kadry-menu";
+import { ageLabel } from "@/lib/kadry-rules";
 
 /** The Кадры panel, with this month's upcoming birthdays underneath. */
 export default async function KadryPage() {
   const t = await getT();
+  const locale = await getLocale();
   const res = await apiGet<KadryBirthday[]>("/kadry/birthdays");
   const rows = res.ok ? res.data : [];
   return (
@@ -28,7 +30,7 @@ export default async function KadryPage() {
                     {b.name}
                   </Link>
                   {b.daysLeft === 0 ? <Badge>{t("kadry.today")}</Badge> : <span className="text-muted-foreground">{t("kadry.in_days", { n: String(b.daysLeft) })}</span>}
-                  {b.turnsAge != null && <span className="text-muted-foreground">{t("kadry.turns", { age: String(b.turnsAge) })}</span>}
+                  {b.turnsAge != null && <span className="text-muted-foreground">{t("kadry.turns", { age: locale === "ru" ? ageLabel(b.turnsAge, locale) : String(b.turnsAge) })}</span>}
                 </li>
               ))}
             </ul>

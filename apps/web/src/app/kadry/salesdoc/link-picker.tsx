@@ -38,7 +38,11 @@ export function LinkPicker({
       try {
         setError(null);
         const r = await linkAccount(employeeId, kind, sdId);
-        if (!r.ok) setError(r.message || t("errors.unknown"));
+        // 12 Oct 2026: a failed link also clears the choice (the refreshed list may no longer hold it).
+        if (!r.ok) {
+          setEmployeeId("");
+          setError(r.message || t("errors.unknown"));
+        }
       } finally {
         busy.current = false;
       }

@@ -9,6 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTitle, DialogTr
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { KadryDepartment } from "@/lib/api";
+import { serverErrorKey } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { deleteDepartment, saveDepartment } from "../actions";
 import { DeleteConfirm } from "./delete-confirm";
@@ -59,6 +60,7 @@ export function DepartmentDialog({
         setError(null);
         const r = await saveDepartment(department?.id ?? null, { name: name.trim(), sortOrder: n, headEmployeeId: head || null });
         if (r.ok) setOpen(false);
+        else if (r.code === "duplicate_department" && serverErrorKey(r.code)) setNameError(t(serverErrorKey(r.code)!));
         else setError(r.message || t("errors.unknown"));
       } finally {
         busy.current = false;

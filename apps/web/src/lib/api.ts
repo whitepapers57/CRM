@@ -3,7 +3,9 @@ import { getSessionToken } from "./session";
 
 const API_URL = process.env.API_URL ?? "http://localhost:4000/api";
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
+// 12 Oct 2026: failures carry the server's `field` / `code` too (a duplicate is shown under its field).
+// export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; message: string; field?: string; code?: string };
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   const token = await getSessionToken();
@@ -22,9 +24,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
   // Outside try/catch: redirect() works by throwing.
   if (res.status === 401) redirect("/login");
   if (!res.ok) {
-    const b = body as { message?: string | string[] } | null;
+    const b = body as { message?: string | string[]; field?: string; code?: string } | null;
     const message = Array.isArray(b?.message) ? b.message.join(", ") : b?.message;
-    return { ok: false, status: res.status, message: message ?? res.statusText };
+    return { ok: false, status: res.status, message: message ?? res.statusText, ...(b?.field ? { field: b.field } : {}), ...(b?.code ? { code: b.code } : {}) };
   }
   return { ok: true, data: body as T };
 }

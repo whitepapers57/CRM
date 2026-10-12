@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import type { KadryStructure } from "@/lib/api";
-import { EMPLOYMENT_TYPES, emptyEmployeeForm, employeeProblems, positionOptions, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
+import { EMPLOYMENT_TYPES, emptyEmployeeForm, employeeProblems, positionOptions, serverErrorKey, type EmployeeForm, type EmployeeProblems } from "@/lib/kadry-rules";
 import { cn } from "@/lib/utils";
 import { createEmployee, updateEmployee } from "../actions";
 import { ScheduleEditor } from "./schedule-editor";
@@ -122,6 +122,15 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
       return;
     }
     busy.current = true;
+    // 12 Oct 2026: the guard was released in a `finally`, i.e. before the navigation finished, so a second click could create
+    // a second employee. Now it is released on failure only; a success leaves it locked while the page changes.
+    const fail = (r: { message?: string; code?: string }) => {
+      busy.current = false;
+      const key = serverErrorKey(r.code);
+      // A duplicate PINFL goes under the PINFL field (shown in create mode); in edit mode that field is not on this form.
+      if (key && r.code === "duplicate_pinfl" && mode === "create") setProblems((p) => ({ ...p, pinfl: key }));
+      else setMessage(key ? t(key) : r.message || t("errors.unknown"));
+    };
     start(async () => {
       try {
         setMessage(null);
@@ -131,14 +140,15 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
           if (r.ok) {
             router.push(doneHref ?? cancelHref);
             router.refresh();
-          } else setMessage(r.message || t("errors.unknown"));
+          } else fail(r);
         } else {
           const r = await createEmployee(form);
           if (r.ok && r.id) router.push(`/kadry/sotrudniki/${encodeURIComponent(r.id)}`);
-          else setMessage(r.message || t("errors.unknown"));
+          else fail(r);
         }
-      } finally {
+      } catch (e) {
         busy.current = false;
+        throw e;
       }
     });
   };
@@ -222,9 +232,9 @@ export function WorkplaceForm(props: WorkplaceFormProps) {
           </div>
           {text("rate", "kadry.rate", { inputMode: "decimal", autoComplete: "off" })}
           {text("salary", "kadry.salary", { inputMode: "numeric", autoComplete: "off" })}
-          <DateField clearable label={t("kadry.hired_at")} value={form.hiredAt} onChange={(d) => set("hiredAt", d)} error={err("hiredAt")} locale={locale} />
+          <DateField clearable label={t("kadry.hired_at")} value={form.hiredAt} onChange={(d) => set("hiredAt", d)} yearPicker={{ fromYear: 1990, toYear: new Date().getFullYear() + 1 }} error={err("hiredAt")} locale={locale} />
           {text("orderNumber", "kadry.order_number", { autoComplete: "off" })}
-          <DateField clearable label={t("kadry.order_date")} value={form.orderDate} onChange={(d) => set("orderDate", d)} error={err("orderDate")} locale={locale} />
+          <DateField clearable label={t("kadry.order_date")} value={form.orderDate} onChange={(d) => set("orderDate", d)} yearPicker={{ fromYear: 1990, toYear: new Date().getFullYear() + 1 }} error={err("orderDate")} locale={locale} />
           {text("experienceMonths", "kadry.experience", { inputMode: "numeric", autoComplete: "off" })}
         </CardContent>
       </Card>

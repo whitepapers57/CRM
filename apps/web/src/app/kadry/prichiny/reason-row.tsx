@@ -6,6 +6,7 @@ import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { serverErrorKey } from "@/lib/kadry-rules";
 import { translate, type Locale, type MessageKey } from "@/i18n/messages";
 import { saveReason } from "../actions";
 
@@ -33,7 +34,7 @@ export function ReasonRow({ id, label, sortOrder, active, locale }: { id: string
         setError(null);
         const r = await saveReason(id, { label: draft.trim(), sortOrder, active });
         if (r.ok) setEditing(false);
-        else setError(r.message || t("errors.unknown"));
+        else setError(serverErrorKey(r.code) ? t(serverErrorKey(r.code)!) : r.message || t("errors.unknown"));
       } finally {
         busy.current = false;
       }
@@ -131,7 +132,7 @@ export function AddReason({ nextSort, locale }: { nextSort: number; locale: Loca
         setError(null);
         const r = await saveReason(null, { label: label.trim(), sortOrder: nextSort, active: true });
         if (r.ok) setLabel("");
-        else setError(r.message || t("errors.unknown"));
+        else setError(serverErrorKey(r.code) ? t(serverErrorKey(r.code)!) : r.message || t("errors.unknown"));
       } finally {
         busy.current = false;
       }
