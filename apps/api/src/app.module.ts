@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
 import { CashModule } from './cash/cash.module.js';
+import { KadryModule } from './kadry/kadry.module.js';
 import { MonthsModule } from './months/months.module.js';
 import { SalesModule } from './sales/sales.module.js';
 import { SalesdocModule } from './salesdoc/salesdoc.module.js';
@@ -25,6 +26,7 @@ import { SyncModule } from './sync/sync.module.js';
     WarehouseModule,
     SalesModule,
     CashModule,
+    KadryModule,
   ],
   controllers: [HealthController],
 })
