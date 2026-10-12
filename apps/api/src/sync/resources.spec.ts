@@ -16,12 +16,18 @@ describe('resources', () => {
   beforeEach(() => truncateAll(db));
   afterAll(() => db.$disconnect());
 
+  it('syncs supervisors from getSupervisor before documents', () => {
+    expect(byName('supervisors')).toMatchObject({ method: 'getSupervisor', resultKey: 'supervisor', mode: 'replace' });
+    const names = RESOURCES.map((r) => r.name);
+    expect(names.indexOf('supervisors')).toBeLessThan(names.indexOf('purchases'));
+  });
+
   it('lists resources with reference data before documents', () => {
     const names = RESOURCES.map((r) => r.name);
     expect(names.indexOf('outlets')).toBeLessThan(names.indexOf('orders'));
     expect(names).toEqual(
       expect.arrayContaining(['paymentTypes', 'cashboxes', 'warehouses', 'suppliers', 'agents',
-        'expeditors', 'products', 'stock', 'outlets', 'balances', 'purchases', 'orders', 'returns', 'payments']),
+        'expeditors', 'supervisors', 'products', 'stock', 'outlets', 'balances', 'purchases', 'orders', 'returns', 'payments']),
     );
   });
 

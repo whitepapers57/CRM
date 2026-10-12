@@ -6,6 +6,7 @@ import {
   mapPurchase,
   mapReturn,
   mapStock,
+  mapSupervisor,
   mapWarehouse,
 } from './mappers.js';
 
@@ -144,5 +145,10 @@ describe('mappers', () => {
     );
     expect(b).toMatchObject({ sdId: 'm4_386', name: 'BEХRUZ MARKET', seenAt });
     expect(b.debt.toString()).toBe('350985.54');
+  });
+
+  it('maps a supervisor like an agent', () => {
+    const s = mapSupervisor({ SD_id: 'd0_30', CS_id: 'F5-d0_30', code_1C: null, name: 'Супервайзер Андижан', active: 'Y', agents: [{ SD_id: 'd0_1' }] }, seenAt);
+    expect(s).toMatchObject({ sdId: 'd0_30', csId: 'F5-d0_30', name: 'Супервайзер Андижан', active: true });
   });
 });

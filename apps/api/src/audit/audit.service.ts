@@ -6,7 +6,12 @@ import type { AuthUser } from '../auth/auth.service.js';
 export type AuditAction =
   | 'purchase.edit' | 'purchase.delete' | 'purchase.restore'
   | 'month.close' | 'month.open'
-  | 'cash.create' | 'cash.edit' | 'cash.cancel' | 'cash.restore';
+  | 'cash.create' | 'cash.edit' | 'cash.cancel' | 'cash.restore'
+  | 'hr.emp.create' | 'hr.emp.edit' | 'hr.emp.dismiss' | 'hr.emp.restore' | 'hr.emp.make_permanent' | 'hr.emp.delete'
+  | 'hr.emp.relative.save' | 'hr.emp.relative.delete' | 'hr.emp.diploma.save' | 'hr.emp.diploma.delete'
+  | 'hr.emp.salesdoc.link' | 'hr.emp.salesdoc.unlink'
+  | 'hr.struct.department.save' | 'hr.struct.department.delete' | 'hr.struct.position.save' | 'hr.struct.position.delete'
+  | 'hr.reason.save';
 type Db = PrismaService | Prisma.TransactionClient;
 const json = (v: unknown) => (v === undefined ? undefined : (v as Prisma.InputJsonValue));
 

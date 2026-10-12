@@ -27,6 +27,7 @@ export const mapWarehouse = (r: Raw, seenAt: Date) => base(r, seenAt);
 export const mapSupplier = (r: Raw, seenAt: Date) => base(r, seenAt);
 export const mapAgent = (r: Raw, seenAt: Date) => base(r, seenAt);
 export const mapExpeditor = (r: Raw, seenAt: Date) => base(r, seenAt);
+export const mapSupervisor = (r: Raw, seenAt: Date) => base(r, seenAt);
 
 export const mapProduct = (r: Raw, seenAt: Date) => ({
   ...base(r, seenAt),

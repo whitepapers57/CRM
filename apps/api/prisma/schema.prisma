@@ -395,3 +395,160 @@ model CashOperation {
   @@index([account, direction, date])
   @@index([supplierSdId, date])
 }
+
+/// Кадры: a department. nameKey = lower(trim(name)): names are unique whatever the case.
+model Department {
+  id             String     @id @default(uuid())
+  name           String
+  nameKey        String     @unique
+  sortOrder      Int        @default(0)
+  headEmployeeId String?
+  head           Employee?  @relation("DepartmentHead", fields: [headEmployeeId], references: [id], onDelete: SetNull)
+  positions      Position[]
+  employees      Employee[] @relation("EmployeeDepartment")
+  createdAt      DateTime   @default(now())
+}
+
+/// Кадры: a position. groupKey = departmentId or "-", so a name is unique within one department.
+model Position {
+  id           String      @id @default(uuid())
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  groupKey     String
+  name         String
+  nameKey      String
+  description  String?
+  sortOrder    Int         @default(0)
+  /// "HH:MM" — arrival threshold (Кадры part 2).
+  startTime    String?
+  /// ISO weekdays 1–7; empty = not set (part 2 falls back to the global rule).
+  workdays     Int[]       @default([])
+  employees    Employee[]
+  createdAt    DateTime    @default(now())
+
+  @@unique([groupKey, nameKey])
+}
+
+model TerminationReason {
+  id        String   @id @default(uuid())
+  label     String
+  labelKey  String   @unique
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+/// Кадры: one person on the staff (spec §2).
+model Employee {
+  id                 String                    @id @default(uuid())
+  lastName           String
+  firstName          String
+  middleName         String?
+  /// «Фамилия Имя Отчество», rebuilt on every save.
+  name               String
+  phone              String?
+  email              String?
+  birthDate          DateTime?                 @db.Date
+  birthPlace         String?
+  nationality        String?
+  citizenship        String?
+  /// "male" | "female"
+  gender             String?
+  passportSeries     String?
+  passportNumber     String?
+  passportIssuedBy   String?
+  passportIssuedDate DateTime?                 @db.Date
+  passportValidUntil DateTime?                 @db.Date
+  pinfl              String?                   @unique
+  inn                String?
+  address            String?
+  /// higher | incomplete_higher | specialized_secondary | secondary | incomplete_secondary
+  educationLevel     String?
+  departmentId       String?
+  department         Department?               @relation("EmployeeDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId         String?
+  position           Position?                 @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  /// TD | GPH | IP | SZ
+  employmentType     String?
+  remote             Boolean                   @default(false)
+  /// { "1": { "start": "09:00", "end": "18:00" }, … }; NULL = the position's schedule.
+  workSchedule       Json?
+  rate               Decimal                   @default(1) @db.Decimal(4, 2)
+  /// so'm
+  salary             Int?
+  hiredAt            DateTime?                 @db.Date
+  orderNumber        String?
+  orderDate          DateTime?                 @db.Date
+  experienceMonths   Int?
+  /// intern | active | terminated
+  status             String                    @default("active")
+  terminatedAt       DateTime?
+  terminationReason  String?
+  createdAt          DateTime                  @default(now())
+  createdById        String
+  relatives          EmployeeRelative[]
+  diplomas           EmployeeDiploma[]
+  salesdocAccounts   EmployeeSalesdocAccount[]
+  headOf             Department[]              @relation("DepartmentHead")
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([positionId])
+}
+
+model EmployeeRelative {
+  id                String    @id @default(uuid())
+  employeeId        String
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  /// spouse | mother | father | child | sibling | other
+  relation          String
+  fullName          String?
+  birthDate         DateTime? @db.Date
+  workplacePosition String?
+  residenceAddress  String?
+  phone             String?
+  createdAt         DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model EmployeeDiploma {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  degree        String?
+  institution   String?
+  specialty     String?
+  enrolledYear  Int?
+  graduatedYear Int?
+  seriesNumber  String?
+  issuedDate    DateTime? @db.Date
+  status        String?
+  createdAt     DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+/// A Salesdoc account (route / expeditor / supervisor) a person works under. No FK to the synced tables: the sync recreates their rows.
+model EmployeeSalesdocAccount {
+  /// agent | expeditor | supervisor
+  kind       String
+  sdId       String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  linkedAt   DateTime @default(now())
+  linkedById String
+
+  @@id([kind, sdId])
+  @@index([employeeId])
+}
+
+model Supervisor {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}

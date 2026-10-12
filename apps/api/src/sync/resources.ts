@@ -4,6 +4,7 @@ import {
   mapBalance,
   mapCashbox,
   mapExpeditor,
+  mapSupervisor,
   mapOrder,
   mapOutlet,
   mapPayment,
@@ -86,6 +87,7 @@ const m = (tx: Tx) => ({
   supplier: tx.supplier as unknown as FlatModel,
   agent: tx.agent as unknown as FlatModel,
   expeditor: tx.expeditor as unknown as FlatModel,
+  supervisor: tx.supervisor as unknown as FlatModel,
   product: tx.product as unknown as FlatModel,
   stockLevel: tx.stockLevel as unknown as FlatModel,
   outlet: tx.outlet as unknown as FlatModel,
@@ -133,6 +135,7 @@ export const RESOURCES: ResourceDef[] = [
   flat('suppliers', 'getShipper', 'shipper', 'supplier', mapSupplier),
   flat('agents', 'getAgent', 'agent', 'agent', mapAgent),
   flat('expeditors', 'getExpeditor', 'expeditor', 'expeditor', mapExpeditor),
+  flat('supervisors', 'getSupervisor', 'supervisor', 'supervisor', mapSupervisor),
   flat('products', 'getProduct', 'product', 'product', mapProduct),
   {
     name: 'stock',
