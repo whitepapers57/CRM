@@ -4,6 +4,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.service.js';
 import { tashkentDay } from '../sync/salesdoc-date.js';
+import { SalesdocLinksService } from './salesdoc-links.service.js';
 import { cleanDiploma, cleanEmployee, cleanRelative, type EmployeeInput } from './employee-rules.js';
 
 const ymd = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : null);
@@ -23,7 +24,7 @@ export interface EmployeeCard extends Record<string, unknown> {
   departmentName: string | null; positionName: string | null;
   positionSchedule: { startTime: string | null; workdays: number[] } | null;
   relatives: Array<Record<string, unknown>>; diplomas: Array<Record<string, unknown>>;
-  accounts: Array<{ kind: string; sdId: string }>; canDelete: boolean;
+  accounts: Array<{ kind: string; sdId: string; name: string }>; canDelete: boolean;
 }
 
 /** Кадры: employee cards, relatives, diplomas and status changes (spec §2–3). */
@@ -32,6 +33,7 @@ export class EmployeesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly links: SalesdocLinksService,
   ) {}
 
   private async find(id: string) {
@@ -81,11 +83,13 @@ export class EmployeesService {
       },
       include: { position: { select: { name: true } }, department: { select: { name: true } }, salesdocAccounts: { select: { kind: true, sdId: true } } },
     });
+    const names = await this.links.namesFor(rows.flatMap((e) => e.salesdocAccounts));
+    const named = (a: Array<{ kind: string; sdId: string }>) => a.map((x) => ({ kind: x.kind, sdId: x.sdId, name: names.get(`${x.kind}:${x.sdId}`) ?? x.sdId }));
     return rows
       .map((e) => ({
         id: e.id, name: e.name, lastName: e.lastName, firstName: e.firstName, middleName: e.middleName,
         positionName: e.position?.name ?? null, departmentName: e.department?.name ?? null, status: e.status,
-        employmentType: e.employmentType, hiredAt: ymd(e.hiredAt), accounts: e.salesdocAccounts,
+        employmentType: e.employmentType, hiredAt: ymd(e.hiredAt), accounts: named(e.salesdocAccounts),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }
@@ -100,6 +104,7 @@ export class EmployeesService {
       },
     });
     if (!e) throw new NotFoundException('Сотрудник не найден');
+    const names = await this.links.namesFor(e.salesdocAccounts);
     const { position, department, relatives, diplomas, salesdocAccounts, ...rest } = e;
     return {
       ...snapshot(rest),
@@ -108,7 +113,7 @@ export class EmployeesService {
       positionSchedule: position ? { startTime: position.startTime, workdays: [...position.workdays].sort((a, b) => a - b) } : null,
       relatives: relatives.map((r) => ({ ...r, birthDate: ymd(r.birthDate), createdAt: r.createdAt.toISOString() })),
       diplomas: diplomas.map((d) => ({ ...d, issuedDate: ymd(d.issuedDate), createdAt: d.createdAt.toISOString() })),
-      accounts: salesdocAccounts,
+      accounts: salesdocAccounts.map((x) => ({ kind: x.kind, sdId: x.sdId, name: names.get(`${x.kind}:${x.sdId}`) ?? x.sdId })),
       canDelete: salesdocAccounts.length === 0,
     } as unknown as EmployeeCard;
   }

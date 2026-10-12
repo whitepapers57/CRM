@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Put, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/auth.guard.js';
 import type { AuthUser } from '../auth/auth.service.js';
 import { EmployeesService } from './employees.service.js';
 import type { EmployeeInput } from './employee-rules.js';
+import { AuditService } from '../audit/audit.service.js';
+import { SalesdocLinksService } from './salesdoc-links.service.js';
+import { KadryStatsService } from './kadry-stats.service.js';
 import { StructureService } from './structure.service.js';
 
 @Controller('kadry')
@@ -10,6 +13,9 @@ export class KadryController {
   constructor(
     private readonly structure: StructureService,
     private readonly employees: EmployeesService,
+    private readonly links: SalesdocLinksService,
+    private readonly stats: KadryStatsService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get('structure') getStructure() { return this.structure.structure(); }
@@ -41,4 +47,14 @@ export class KadryController {
   @Put('employees/:id/diplomas/:did') @HttpCode(204) putDiploma(@Param('id') id: string, @Param('did') did: string, @Body() b: Record<string, unknown>, @CurrentUser() u: AuthUser) { return this.employees.saveDiploma(id, did, b ?? {}, u).then(() => undefined); }
   @Delete('employees/:id/diplomas/:did') @HttpCode(204) delDiploma(@Param('id') id: string, @Param('did') did: string, @CurrentUser() u: AuthUser) { return this.employees.deleteDiploma(id, did, u); }
   @Get('employees/:id/history') employeeHistory(@Param('id') id: string) { return this.employees.history(id); }
+  @Get('salesdoc-accounts') accounts() { return this.links.accounts(); }
+  @Post('employees/:id/salesdoc') @HttpCode(204) link(@Param('id') id: string, @Body() b: { kind?: string; sdId?: string }, @CurrentUser() u: AuthUser) { return this.links.link(id, b?.kind ?? '', b?.sdId ?? '', u); }
+  @Delete('employees/:id/salesdoc/:kind/:sdId') @HttpCode(204) unlink(@Param('id') id: string, @Param('kind') kind: string, @Param('sdId') sdId: string, @CurrentUser() u: AuthUser) { return this.links.unlink(id, kind, sdId, u); }
+  @Get('metrics') metrics() { return this.stats.metrics(); }
+  @Get('birthdays') birthdays() { return this.stats.birthdays(); }
+  @Get('history/:scope') history(@Param('scope') scope: string) {
+    const PREFIX: Record<string, string> = { employees: 'hr.emp.', structure: 'hr.struct.', reasons: 'hr.reason.' };
+    if (!Object.hasOwn(PREFIX, scope)) throw new NotFoundException('Страница не найдена');
+    return this.audit.list({ actionPrefix: PREFIX[scope] });
+  }
 }

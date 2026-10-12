@@ -4,10 +4,13 @@ import { AuditService } from '../audit/audit.service.js';
 import { KadryController } from './kadry.controller.js';
 import { StructureService } from './structure.service.js';
 import { EmployeesService } from './employees.service.js';
+import { SalesdocLinksService } from './salesdoc-links.service.js';
+import { KadryStatsService } from './kadry-stats.service.js';
 
 const db = createTestDb();
 const audit = new AuditService(db);
-const svc = new EmployeesService(db, audit);
+const links = new SalesdocLinksService(db, audit);
+const svc = new EmployeesService(db, audit, links);
 const user = { id: 'u1', login: 'sardor', name: 'Сардорбек' };
 const base = { lastName: 'Нишонов', firstName: 'Шоядбек' };
 
@@ -124,7 +127,7 @@ describe('EmployeesService', () => {
 
   it('ignores repeated query keys in the list route', async () => {
     await svc.create(base, user);
-    const ctl = new KadryController(new StructureService(db, audit), svc);
+    const ctl = new KadryController(new StructureService(db, audit), svc, links, new KadryStatsService(db), audit);
     const arr = ['a', 'b'] as never;
     expect(await ctl.listEmployees(arr, arr, arr, arr)).toHaveLength(1);
   });
@@ -135,5 +138,22 @@ describe('EmployeesService', () => {
     expect(await svc.get(id)).toMatchObject({ status: 'intern', phone: null, salary: null });
     await svc.update(id, { ...base, status: 'terminated' }, user);
     expect((await svc.get(id)).status).toBe('intern');
+  });
+
+  it('shows linked account names in the list', async () => {
+    const { id } = await svc.create(base, user);
+    await db.agent.create({ data: { sdId: 'a1', name: 'AND-D-BEV-01 OPT', active: true, raw: {}, seenAt: new Date() } });
+    await db.employeeSalesdocAccount.create({ data: { kind: 'agent', sdId: 'a1', employeeId: id, linkedById: 'u1' } });
+    expect((await svc.list({}))[0].accounts).toEqual([{ kind: 'agent', sdId: 'a1', name: 'AND-D-BEV-01 OPT' }]);
+    expect((await svc.get(id)).accounts).toEqual([{ kind: 'agent', sdId: 'a1', name: 'AND-D-BEV-01 OPT' }]);
+  });
+
+  it('page history knows its scopes and rejects the rest', async () => {
+    const ctl = new KadryController(new StructureService(db, audit), svc, links, new KadryStatsService(db), audit);
+    await svc.create(base, user);
+    expect((await ctl.history('employees')).map((e) => e.action)).toEqual(['hr.emp.create']);
+    expect(await ctl.history('reasons')).toEqual([]);
+    expect(() => ctl.history('constructor')).toThrow('Страница не найдена');
+    expect(() => ctl.history('other')).toThrow('Страница не найдена');
   });
 });
