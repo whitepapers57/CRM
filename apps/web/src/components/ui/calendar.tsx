@@ -52,6 +52,8 @@ function Calendar({
         month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
         nav: cn(
           "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+          // 12 Oct 2026: with month / year dropdowns the full-width nav sat on top of them and ate the clicks; only its arrows take clicks.
+          captionLayout !== "label" && "pointer-events-none [&_button]:pointer-events-auto",
           defaultClassNames.nav
         ),
         button_previous: cn(
