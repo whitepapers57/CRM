@@ -96,7 +96,8 @@ export function cleanEmployee(i: EmployeeInput, today: string) {
   const educationLevel = oneOf(i.educationLevel, EDUCATION_LEVELS, 'Неверный уровень образования');
   const employmentType = oneOf(i.employmentType, EMPLOYMENT_TYPES, 'Неверный тип занятости');
   const workSchedule = cleanSchedule(i.workSchedule);
-  const rateText = i.rate == null || i.rate === '' ? '1' : String(i.rate).trim().replace(',', '.');
+  if (i.rate != null && typeof i.rate !== 'number' && typeof i.rate !== 'string') throw bad('Ставка — число больше 0');
+  const rateText = i.rate == null || String(i.rate).trim() === '' ? '1' : String(i.rate).trim().replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(rateText) || !(Number(rateText) > 0) || Number(rateText) > 99.99) throw bad('Ставка — число больше 0');
   const salary = wholeNumber(i.salary, 'Оклад — целое число сум', 2_000_000_000);
   const experienceMonths = wholeNumber(i.experienceMonths, 'Стаж — целое число месяцев', 1200);

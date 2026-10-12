@@ -1,6 +1,8 @@
 import { ConflictException } from '@nestjs/common';
 import { createTestDb, truncateAll } from '../testing/test-db.js';
 import { AuditService } from '../audit/audit.service.js';
+import { KadryController } from './kadry.controller.js';
+import { StructureService } from './structure.service.js';
 import { EmployeesService } from './employees.service.js';
 
 const db = createTestDb();
@@ -94,6 +96,8 @@ describe('EmployeesService', () => {
     expect((await svc.list({ search: 'экспед' })).map((r) => r.id)).toEqual([a.id]);
     expect((await svc.list({ search: '1234567890' })).map((r) => r.lastName)).toEqual(['Абдуллаев']);
     expect((await svc.list({ search: '+998 90' })).map((r) => r.id)).toEqual([a.id]); // phone; a PINFL never holds '+'
+    expect((await svc.list({ search: '901234567' })).map((r) => r.id)).toEqual([a.id]);
+    expect((await svc.list({ search: '90 123' })).map((r) => r.id)).toContain(a.id); // also hits the other employee's PINFL 12345678901234
   });
 
   it('keeps relatives and diplomas on the card, only for their own employee', async () => {
@@ -109,5 +113,27 @@ describe('EmployeesService', () => {
     await svc.deleteDiploma(a.id, d.id, user);
     expect((await svc.get(a.id)).relatives).toEqual([]);
     expect((await svc.history(a.id)).map((e) => e.action)).toEqual(expect.arrayContaining(['hr.emp.relative.save', 'hr.emp.relative.delete', 'hr.emp.diploma.save', 'hr.emp.diploma.delete']));
+  });
+
+  it('answers 400 to a dismissal reason that is not a string', async () => {
+    const { id } = await svc.create(base, user);
+    for (const bad of [5, {}, ['x']]) {
+      await expect(svc.dismiss(id, bad as never, user)).rejects.toThrow('Выберите причину увольнения');
+    }
+  });
+
+  it('ignores repeated query keys in the list route', async () => {
+    await svc.create(base, user);
+    const ctl = new KadryController(new StructureService(db, audit), svc);
+    const arr = ['a', 'b'] as never;
+    expect(await ctl.listEmployees(arr, arr, arr, arr)).toHaveLength(1);
+  });
+
+  it('keeps an edited intern an intern and replaces unsent fields with null', async () => {
+    const { id } = await svc.create({ ...base, status: 'intern', phone: '+998901112233', salary: 5000000 }, user);
+    await svc.update(id, base, user);
+    expect(await svc.get(id)).toMatchObject({ status: 'intern', phone: null, salary: null });
+    await svc.update(id, { ...base, status: 'terminated' }, user);
+    expect((await svc.get(id)).status).toBe('intern');
   });
 });

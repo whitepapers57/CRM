@@ -63,4 +63,10 @@ describe('employee rules', () => {
     expect(() => cleanDiploma({ status: 'Да' })).toThrow('Неверный статус диплома');
     expect(() => cleanDiploma({ enrolledYear: 1800 })).toThrow('Неверный год');
   });
+
+  it('accepts a rate only as a number or a string', () => {
+    expect(cleanEmployee({ ...ok, rate: ' ' }, today).rate).toBe('1.00');
+    expect(() => cleanEmployee({ ...ok, rate: [0.5] as never }, today)).toThrow('Ставка — число больше 0');
+    expect(() => cleanEmployee({ ...ok, rate: {} as never }, today)).toThrow('Ставка — число больше 0');
+  });
 });

@@ -56,7 +56,12 @@ export class EmployeesService {
 
   async list(q: { status?: string; departmentId?: string; positionId?: string; search?: string } = {}) {
     const status = q.status === 'terminated' ? ['terminated'] : q.status === 'all' ? undefined : ['intern', 'active'];
-    const s = q.search?.trim();
+    const s = typeof q.search === 'string' ? q.search.trim() : undefined;
+    // Phones are stored as typed; match the search's digits against the phone's digits (only from 3 digits, so '+' or spaces never matter).
+    const searchDigits = s ? s.replace(/\D/g, '') : '';
+    const byPhone = searchDigits.length >= 3
+      ? (await this.prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM "Employee" WHERE regexp_replace(phone, '[^0-9]', '', 'g') LIKE ${'%' + searchDigits + '%'}`).map((r) => r.id)
+      : [];
     const rows = await this.prisma.employee.findMany({
       where: {
         ...(status ? { status: { in: status } } : {}),
@@ -68,6 +73,7 @@ export class EmployeesService {
                 { name: { contains: s, mode: 'insensitive' as const } },
                 { pinfl: { contains: s.replace(/\s+/g, '') } },
                 { phone: { contains: s } },
+                ...(byPhone.length ? [{ id: { in: byPhone } }] : []),
                 { position: { name: { contains: s, mode: 'insensitive' as const } } },
               ],
             }
@@ -135,7 +141,7 @@ export class EmployeesService {
   async dismiss(id: string, reasonId: string, user: AuthUser) {
     const e = await this.find(id);
     if (e.status === 'terminated') throw new ConflictException('Сотрудник уже уволен');
-    const reason = reasonId ? await this.prisma.terminationReason.findUnique({ where: { id: reasonId } }) : null;
+    const reason = typeof reasonId === 'string' && reasonId ? await this.prisma.terminationReason.findUnique({ where: { id: reasonId } }) : null;
     if (!reason || !reason.active) throw new BadRequestException('Выберите причину увольнения');
     await this.prisma.$transaction(async (tx) => {
       const r = await tx.employee.updateMany({ where: { id, status: { not: 'terminated' } }, data: { status: 'terminated', terminatedAt: new Date(), terminationReason: reason.label } });

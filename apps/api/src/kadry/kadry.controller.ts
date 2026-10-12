@@ -23,7 +23,9 @@ export class KadryController {
   @Post('reasons') addReason(@Body() b: { label?: string; sortOrder?: number; active?: boolean }, @CurrentUser() u: AuthUser) { return this.structure.saveReason(null, b ?? {}, u); }
   @Put('reasons/:id') putReason(@Param('id') id: string, @Body() b: { label?: string; sortOrder?: number; active?: boolean }, @CurrentUser() u: AuthUser) { return this.structure.saveReason(id, b ?? {}, u); }
   @Get('employees') listEmployees(@Query('status') status?: string, @Query('department') departmentId?: string, @Query('position') positionId?: string, @Query('search') search?: string) {
-    return this.employees.list({ status, departmentId: departmentId || undefined, positionId: positionId || undefined, search: search || undefined });
+    // Repeated query keys arrive as arrays: keep only plain strings.
+    const str = (x: unknown) => (typeof x === 'string' && x ? x : undefined);
+    return this.employees.list({ status: str(status), departmentId: str(departmentId), positionId: str(positionId), search: str(search) });
   }
   @Get('employees/:id') employee(@Param('id') id: string) { return this.employees.get(id); }
   @Post('employees') createEmployee(@Body() b: EmployeeInput, @CurrentUser() u: AuthUser) { return this.employees.create(b ?? {}, u); }
