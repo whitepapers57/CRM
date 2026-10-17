@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
 import { Money } from "@/components/app/money-cell";
 import { PageHeader } from "@/components/app/page-header";
+import { PendingLink } from "@/components/app/pending-nav";
 import { PagePeriod } from "@/components/app/page-period";
 import { Text } from "@/components/app/text";
 import { CheckboxField } from "@/components/app/checkbox-field";
@@ -101,23 +102,24 @@ export default async function BuyersPage({ searchParams }: PageProps<"/prodazhi/
         </Table>
       </div>
 
+      {/* 17 Oct 2026: the page arrows were plain <Link>s, which showed nothing while the next page loaded. */}
       <nav className="flex items-center justify-between">
         <Text variant="caption">{t("common.page", { page: String(page), pages: String(pages) })}</Text>
         <div className="flex gap-2">
-          <Link
+          <PendingLink
             href={link(Math.max(1, page - 1))}
             aria-disabled={page <= 1}
             className={cn(buttonVariants({ variant: "outline" }), "active:scale-95", page <= 1 && "pointer-events-none opacity-50")}
           >
             {t("common.prev")}
-          </Link>
-          <Link
+          </PendingLink>
+          <PendingLink
             href={link(Math.min(pages, page + 1))}
             aria-disabled={page >= pages}
             className={cn(buttonVariants({ variant: "outline" }), "active:scale-95", page >= pages && "pointer-events-none opacity-50")}
           >
             {t("common.next")}
-          </Link>
+          </PendingLink>
         </div>
       </nav>
     </>

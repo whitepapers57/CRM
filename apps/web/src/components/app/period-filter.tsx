@@ -1,10 +1,14 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+// 17 Oct 2026: navigated in its own transition, which only spun the button; PendingNav now shows the page skeleton.
+// import { useRouter, useSearchParams, usePathname } from "next/navigation";
+// import { useState, useTransition } from "react";
+import { useSearchParams, usePathname } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/messages";
 import { DateField } from "./date-field";
+import { usePendingNav } from "./pending-nav";
 
 export interface PeriodLabels {
   from: string;
@@ -17,12 +21,13 @@ export interface PeriodLabels {
 
 /** Two dates, validated in place, written to ?from&to (page resets to 1). */
 export function PeriodFilter({ from, to, min, locale, labels }: { from: string; to: string; min?: string; locale: Locale; labels: PeriodLabels }) {
-  const router = useRouter();
+  // const router = useRouter();
+  const go = usePendingNav();
   const pathname = usePathname();
   const params = useSearchParams();
   const [values, setValues] = useState({ from, to });
   const [errors, setErrors] = useState<{ from?: string; to?: string }>({});
-  const [pending, start] = useTransition();
+  // const [pending, start] = useTransition();
 
   function apply(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +42,8 @@ export function PeriodFilter({ from, to, min, locale, labels }: { from: string; 
     q.set("from", values.from);
     q.set("to", values.to);
     q.delete("page");
-    start(() => router.push(`${pathname}?${q}`));
+    // start(() => router.push(`${pathname}?${q}`));
+    go(`${pathname}?${q}`);
   }
 
   return (
@@ -64,8 +70,9 @@ export function PeriodFilter({ from, to, min, locale, labels }: { from: string; 
           setErrors((er) => ({ ...er, to: undefined }));
         }}
       />
-      <Button type="submit" disabled={pending} className="mt-5 active:scale-95">
-        {pending && <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+      {/* <Button type="submit" disabled={pending} className="mt-5 active:scale-95">
+        {pending && <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />} */}
+      <Button type="submit" className="mt-5 active:scale-95">
         {labels.apply}
       </Button>
     </form>
