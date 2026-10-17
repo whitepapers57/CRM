@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleSwitch } from "@/components/app/locale-switch";
+import { PendingNav } from "@/components/app/pending-nav";
 import { Sidebar, type NavItem } from "@/components/app/sidebar";
 import { UserMenu } from "@/components/app/user-menu";
 import { getLocale, getT } from "@/i18n/server";
@@ -51,7 +52,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           }
         />
-        <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-6 px-4 py-8">{children}</main>
+        {/* 17 Oct 2026: was <main …>{children}</main>; PendingNav shows the skeleton while a filter reloads the page. */}
+        <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-6 px-4 py-8">
+          <PendingNav label={t("common.loading")}>{children}</PendingNav>
+        </main>
       </body>
     </html>
   );
