@@ -1,8 +1,10 @@
-import Link from "next/link";
+// 17 Oct 2026: unused since the tabs became PendingLinks:
+// import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
 import { HistoryButton } from "@/components/app/history-button";
 import { HistoryList } from "@/components/app/history-list";
 import { PageHeader } from "@/components/app/page-header";
+import { PendingLink } from "@/components/app/pending-nav";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
@@ -93,8 +95,9 @@ export default async function EmployeeCardPage({ params, searchParams }: PagePro
       </div>
       <nav aria-label={t("kadry.employees")} className="max-w-full overflow-x-auto">
         <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+          {/* 17 Oct 2026: the tabs were plain <Link>s; a ?tab= change showed nothing while it loaded. */}
           {TABS.map((x) => (
-            <Link
+            <PendingLink
               key={x}
               href={x === "work" ? `/kadry/sotrudniki/${enc}` : `/kadry/sotrudniki/${enc}?tab=${x}`}
               aria-current={x === tab ? "page" : undefined}
@@ -104,7 +107,7 @@ export default async function EmployeeCardPage({ params, searchParams }: PagePro
               )}
             >
               {t(`kadry.tab.${x}` as MessageKey)}
-            </Link>
+            </PendingLink>
           ))}
         </div>
       </nav>

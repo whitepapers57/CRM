@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ApiError } from "@/components/app/api-error";
 import { PageHeader } from "@/components/app/page-header";
+import { PendingLink } from "@/components/app/pending-nav";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +43,11 @@ export default async function SalesdocAccountsPage({ searchParams }: PageProps<"
       <StickyToolbar>
         {header}
         <div className="flex flex-wrap gap-2">
-          <Link href="/kadry/salesdoc" aria-current={onlyUnlinked ? undefined : "page"} className={tab(!onlyUnlinked)}>{t("common.all")} · {all.length}</Link>
-          <Link href="/kadry/salesdoc?only=unlinked" aria-current={onlyUnlinked ? "page" : undefined} className={tab(onlyUnlinked)}>
+          {/* 17 Oct 2026: plain <Link>s; a search-param-only change showed nothing while it loaded. */}
+          <PendingLink href="/kadry/salesdoc" aria-current={onlyUnlinked ? undefined : "page"} className={tab(!onlyUnlinked)}>{t("common.all")} · {all.length}</PendingLink>
+          <PendingLink href="/kadry/salesdoc?only=unlinked" aria-current={onlyUnlinked ? "page" : undefined} className={tab(onlyUnlinked)}>
             {t("kadry.only_unlinked")} · {all.filter((a) => !a.employee).length}
-          </Link>
+          </PendingLink>
         </div>
       </StickyToolbar>
       <div className="overflow-x-auto rounded-lg border">

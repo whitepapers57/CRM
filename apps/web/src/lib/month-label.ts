@@ -1,4 +1,9 @@
-import type { MessageKey } from "@/i18n/messages";
+import { translate, type Locale, type MessageKey } from "@/i18n/messages";
+
+/** A date's month name from the catalogue («Sentyabr», «Сентябрь»); for the calendar's month dropdown. */
+export function monthName(locale: Locale, date: Date): string {
+  return translate(locale, `month.${date.getMonth() + 1}` as MessageKey);
+}
 
 /** "2026-09" → "Сентябрь 2026", composed by hand (Intl gives "M09" for Uzbek). */
 export function monthLabel(month: string, t: (key: MessageKey) => string): string {

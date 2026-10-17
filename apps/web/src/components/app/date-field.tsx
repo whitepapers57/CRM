@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { translate, type Locale } from "@/i18n/messages";
 import { dateToDay, dayToDate } from "@/lib/day";
+import { monthName } from "@/lib/month-label";
 import { cn } from "@/lib/utils";
 import { Select } from "./select";
 import { Text } from "./text";
@@ -82,6 +83,8 @@ export function DateField({
                   startMonth: new Date(yearPicker.fromYear, 0, 1),
                   endMonth: new Date(yearPicker.toYear, 11, 1),
                   components: { Dropdown: CaptionDropdown },
+                  // The Calendar's default month names come from Intl, which gives «M01…M12» for Uzbek.
+                  formatters: { formatMonthDropdown: (d: Date) => monthName(locale, d) },
                 }
               : {})}
             locale={locales[locale]}
