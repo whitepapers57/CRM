@@ -29,9 +29,12 @@ export const mapAgent = (r: Raw, seenAt: Date) => base(r, seenAt);
 export const mapExpeditor = (r: Raw, seenAt: Date) => base(r, seenAt);
 export const mapSupervisor = (r: Raw, seenAt: Date) => base(r, seenAt);
 
+export const mapProductCategory = (r: Raw, seenAt: Date) => base(r, seenAt);
+
 export const mapProduct = (r: Raw, seenAt: Date) => ({
   ...base(r, seenAt),
   packQuantity: r.packQuantity == null ? null : Number(r.packQuantity),
+  categorySdId: ref(r.category),
 });
 
 export const mapOutlet = (r: Raw, seenAt: Date) => ({

@@ -17,11 +17,13 @@ export class WarehouseController {
     @Query('warehouse') warehouse?: string,
     @Query('search') search?: string,
     @Query('includeZero') includeZero?: string,
+    @Query('category') category?: string,
   ) {
     return this.warehouse.stock({
       warehouse: warehouse || undefined,
       search: search?.trim() || undefined,
       includeZero: includeZero === 'true',
+      category: category || undefined,
     });
   }
 

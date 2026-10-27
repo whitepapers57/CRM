@@ -22,6 +22,22 @@ describe('resources', () => {
     expect(names.indexOf('supervisors')).toBeLessThan(names.indexOf('purchases'));
   });
 
+  it('syncs product categories from getProductCategory before products', () => {
+    expect(byName('productCategories')).toMatchObject({ method: 'getProductCategory', resultKey: 'productCategory', mode: 'replace' });
+    expect(byName('productCategories').dated).toBeUndefined();
+    const names = RESOURCES.map((r) => r.name);
+    expect(names.indexOf('productCategories')).toBeLessThan(names.indexOf('products'));
+  });
+
+  it('saves a product category and the category of each product', async () => {
+    await db.$transaction(async (tx) => {
+      await byName('productCategories').save(tx, [{ SD_id: 'd0_3', name: 'Вода', active: 'Y' }], t1);
+      await byName('products').save(tx, [{ SD_id: 'p1', name: 'Вода 0.5', active: 'Y', category: { SD_id: 'd0_3' } }], t1);
+    });
+    expect((await db.productCategory.findUniqueOrThrow({ where: { sdId: 'd0_3' } })).name).toBe('Вода');
+    expect((await db.product.findUniqueOrThrow({ where: { sdId: 'p1' } })).categorySdId).toBe('d0_3');
+  });
+
   it('lists resources with reference data before documents', () => {
     const names = RESOURCES.map((r) => r.name);
     expect(names.indexOf('outlets')).toBeLessThan(names.indexOf('orders'));

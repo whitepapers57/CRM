@@ -98,6 +98,17 @@ model Expeditor {
   seenAt DateTime
 }
 
+/// Salesdoc product category (getProductCategory).
+model ProductCategory {
+  sdId   String   @id
+  csId   String?
+  code1c String?
+  name   String
+  active Boolean
+  raw    Json
+  seenAt DateTime
+}
+
 model Product {
   sdId         String   @id
   csId         String?
@@ -105,6 +116,7 @@ model Product {
   name         String
   active       Boolean
   packQuantity Int?
+  categorySdId String?
   raw          Json
   seenAt       DateTime
 }

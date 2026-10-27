@@ -40,6 +40,52 @@ describe('WarehouseService', () => {
     expect((await svc.stock({ search: 'байкал', includeZero: true })).rows.map((r) => r.productSdId)).toEqual(['p2']);
   });
 
+  it('shows the category of each product, sorts by it and filters by it', async () => {
+    await db.productCategory.createMany({
+      data: [
+        { sdId: 'c1', name: 'Лимонады', active: true, raw: {}, seenAt },
+        { sdId: 'c2', name: 'Вода', active: true, raw: {}, seenAt },
+        { sdId: 'c3', name: 'Чипсы', active: true, raw: {}, seenAt },
+      ],
+    });
+    await db.product.createMany({
+      data: [
+        { sdId: 'p1', name: 'Дюшес 1.5', active: true, categorySdId: 'c1', raw: {}, seenAt },
+        { sdId: 'p2', name: 'Байкал', active: true, categorySdId: 'c1', raw: {}, seenAt },
+        { sdId: 'p4', name: 'Вода 1 л', active: true, categorySdId: 'c2', raw: {}, seenAt },
+      ],
+    });
+    await db.stockLevel.createMany({
+      data: [
+        { sdId: 'w1:p3', warehouseSdId: 'w1', productSdId: 'p3', productName: 'Вода 0.5', quantity: 7, seenAt },
+        { sdId: 'w2:p4', warehouseSdId: 'w2', productSdId: 'p4', productName: 'Вода 1 л', quantity: 3, seenAt },
+      ],
+    });
+
+    const { rows, categories, uncategorized } = await svc.stock({ includeZero: true });
+    // Only categories that have stock are offered; c3 has none.
+    expect(categories).toEqual([{ sdId: 'c2', name: 'Вода' }, { sdId: 'c1', name: 'Лимонады' }]);
+    expect(uncategorized).toBe(true);
+    expect(rows.map((r) => [r.categoryName, r.productName, r.warehouseName])).toEqual([
+      ['Вода', 'Вода 1 л', 'Склад Импорт'],
+      ['Лимонады', 'Байкал', 'Нич склад основной'],
+      ['Лимонады', 'Дюшес 1.5', 'Нич склад основной'],
+      ['Лимонады', 'Дюшес 1.5', 'Склад Импорт'],
+      [null, 'Вода 0.5', 'Нич склад основной'],
+    ]);
+    const key = (r: { warehouseSdId: string; productSdId: string }) => `${r.warehouseSdId}:${r.productSdId}`;
+    expect((await svc.stock({ category: 'c1' })).rows.map(key)).toEqual(['w1:p1', 'w2:p1']);
+    expect((await svc.stock({ category: '-' })).rows.map(key)).toEqual(['w1:p3']);
+  });
+
+  it('shows the category code until Salesdoc has sent its name', async () => {
+    await db.product.create({ data: { sdId: 'p1', name: 'Дюшес 1.5', active: true, categorySdId: 'd0_9', raw: {}, seenAt } });
+    const { rows, categories, uncategorized } = await svc.stock({ warehouse: 'w1' });
+    expect(rows.map((r) => [r.categorySdId, r.categoryName])).toEqual([['d0_9', 'd0_9']]);
+    expect(categories).toEqual([{ sdId: 'd0_9', name: 'd0_9' }]);
+    expect(uncategorized).toBe(false);
+  });
+
   it('lists purchases in the period with totals, and opens one with its lines', async () => {
     await db.purchase.create({
       data: {

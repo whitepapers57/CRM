@@ -25,25 +25,56 @@ export class WarehouseService {
     };
   }
 
-  async stock(q: { warehouse?: string; search?: string; includeZero?: boolean }) {
+  /**
+   * Current stock with each product's Salesdoc category. `category` is a category sdId,
+   * or "-" for products without one. Categories (and "-", via `uncategorized`) are offered
+   * only if some stock has them.
+   */
+  async stock(q: { warehouse?: string; search?: string; includeZero?: boolean; category?: string }) {
     const n = await this.names();
-    const levels = await this.prisma.stockLevel.findMany({
-      where: {
-        ...(q.warehouse ? { warehouseSdId: q.warehouse } : {}),
-        ...(q.search ? { productName: { contains: q.search, mode: 'insensitive' } } : {}),
-        ...(q.includeZero ? {} : { quantity: { not: 0 } }),
-      },
-    });
-    const rows = levels
-      .map((l) => ({
+    const [levels, products, categories] = await Promise.all([
+      this.prisma.stockLevel.findMany({
+        where: {
+          ...(q.warehouse ? { warehouseSdId: q.warehouse } : {}),
+          ...(q.search ? { productName: { contains: q.search, mode: 'insensitive' } } : {}),
+          ...(q.includeZero ? {} : { quantity: { not: 0 } }),
+        },
+      }),
+      this.prisma.product.findMany({ where: { categorySdId: { not: null } }, select: { sdId: true, categorySdId: true } }),
+      this.prisma.productCategory.findMany({ select: { sdId: true, name: true } }),
+    ]);
+    const categoryOf = new Map(products.map((p) => [p.sdId, p.categorySdId]));
+    const categoryName = new Map(categories.map((c) => [c.sdId, c.name]));
+    // A category Salesdoc has not named yet shows its code, like an unknown warehouse.
+    const all = levels.map((l) => {
+      const categorySdId = categoryOf.get(l.productSdId) ?? null;
+      return {
         warehouseSdId: l.warehouseSdId,
         warehouseName: n.warehouse.get(l.warehouseSdId) ?? l.warehouseSdId,
+        categorySdId,
+        categoryName: categorySdId ? (categoryName.get(categorySdId) ?? categorySdId) : null,
         productSdId: l.productSdId,
         productName: l.productName,
         quantity: s3(l.quantity),
-      }))
-      .sort((a, b) => a.warehouseName.localeCompare(b.warehouseName, 'ru') || a.productName.localeCompare(b.productName, 'ru'));
-    return { warehouses: n.warehouses, rows };
+      };
+    });
+    const offered = new Map(all.flatMap((r) => (r.categorySdId ? [[r.categorySdId, r.categoryName!] as const] : [])));
+    const rows = all
+      .filter((r) => !q.category || (r.categorySdId ?? '-') === q.category)
+      .sort(
+        (a, b) =>
+          // Products without a category go last.
+          Number(a.categoryName === null) - Number(b.categoryName === null) ||
+          (a.categoryName ?? '').localeCompare(b.categoryName ?? '', 'ru') ||
+          a.productName.localeCompare(b.productName, 'ru') ||
+          a.warehouseName.localeCompare(b.warehouseName, 'ru'),
+      );
+    return {
+      warehouses: n.warehouses,
+      categories: [...offered].map(([sdId, name]) => ({ sdId, name })).sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+      uncategorized: all.some((r) => r.categorySdId === null),
+      rows,
+    };
   }
 
   async purchases(p: Period, q: { supplier?: string; warehouse?: string; search?: string; includeHidden?: boolean } = {}) {

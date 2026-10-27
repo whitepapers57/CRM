@@ -100,7 +100,20 @@ export interface SupplierStatement {
 
 export interface StockResponse {
   warehouses: Array<{ sdId: string; name: string }>;
-  rows: Array<{ warehouseSdId: string; warehouseName: string; productSdId: string; productName: string; quantity: string }>;
+  /** Salesdoc product categories that have stock, by name. */
+  categories: Array<{ sdId: string; name: string }>;
+  /** Some stock belongs to a product without a category. */
+  uncategorized: boolean;
+  rows: Array<{
+    warehouseSdId: string;
+    warehouseName: string;
+    /** null = the product has no category in Salesdoc. */
+    categorySdId: string | null;
+    categoryName: string | null;
+    productSdId: string;
+    productName: string;
+    quantity: string;
+  }>;
 }
 
 export interface PurchaseList {

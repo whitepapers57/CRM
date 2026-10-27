@@ -3,6 +3,8 @@ import {
   mapOrder,
   mapOutlet,
   mapPayment,
+  mapProduct,
+  mapProductCategory,
   mapPurchase,
   mapReturn,
   mapStock,
@@ -19,6 +21,20 @@ describe('mappers', () => {
       seenAt,
     );
     expect(w).toMatchObject({ sdId: 'd0_3', csId: 'f5-d0_3', code1c: 'andimport', name: 'Склад Импорт', active: true, seenAt });
+  });
+
+  it('maps a product with its category', () => {
+    const p = mapProduct(
+      { SD_id: 'd0_15', name: 'Вода 0.33 стекло газ', active: 'Y', packQuantity: 12, category: { CS_id: 'd0_3', SD_id: 'd0_3' } },
+      seenAt,
+    );
+    expect(p).toMatchObject({ sdId: 'd0_15', packQuantity: 12, categorySdId: 'd0_3' });
+    expect(mapProduct({ SD_id: 'd0_16', name: 'Без категории', active: 'Y' }, seenAt).categorySdId).toBeNull();
+  });
+
+  it('maps a product category', () => {
+    const c = mapProductCategory({ CS_id: 'd0_3', SD_id: 'd0_3', code_1C: '000000003', name: 'Вода', active: 'N' }, seenAt);
+    expect(c).toMatchObject({ sdId: 'd0_3', code1c: '000000003', name: 'Вода', active: false, seenAt });
   });
 
   it('maps an outlet', () => {
