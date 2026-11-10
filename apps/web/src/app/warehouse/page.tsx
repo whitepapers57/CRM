@@ -2,18 +2,21 @@ import { redirect } from "next/navigation";
 import { ApiError } from "@/components/app/api-error";
 import { CheckboxField } from "@/components/app/checkbox-field";
 import { PageHeader } from "@/components/app/page-header";
+import { PendingLink } from "@/components/app/pending-nav";
 import { Select } from "@/components/app/select";
 import { StickyToolbar } from "@/components/app/sticky-toolbar";
 import { Text } from "@/components/app/text";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getT } from "@/i18n/server";
 import { apiGet, qs, type StockResponse } from "@/lib/api";
-import { formatQty } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { StockGroups } from "./stock-groups";
 
 /**
- * Склад: current stock with each product's Salesdoc category, sorted by category.
+ * Склад, like Salesdoc: stock by category («позиция»), SKUs inside. Two views:
+ * «Общее состояние» (units) and «Финансовое состояние» (on hand, new orders and
+ * available to sell, in units and so'm at receipt prices, FIFO).
  * Goods receipts moved to Закупки → Приходные накладные.
  */
 export default async function WarehousePage({ searchParams }: PageProps<"/warehouse">) {
@@ -26,6 +29,10 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
   const res = await apiGet<StockResponse>(
     `/warehouse/stock${qs({ warehouse: get("warehouse"), category: get("category"), search: get("search"), includeZero: get("includeZero") })}`,
   );
+  const finance = get("view") === "finance";
+  const viewHref = (v?: string) =>
+    `/warehouse${qs({ view: v, warehouse: get("warehouse"), category: get("category"), search: get("search"), includeZero: get("includeZero") })}`;
+  const tab = (active: boolean) => cn(buttonVariants({ variant: active ? "default" : "outline", size: "sm" }), "active:scale-95");
   if (!res.ok) {
     return (
       <>
@@ -38,7 +45,12 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
     <>
       <StickyToolbar>
         <PageHeader title={t("nav.warehouse")} />
+        <div className="flex flex-wrap gap-2">
+          <PendingLink href={viewHref()} aria-current={finance ? undefined : "page"} className={tab(!finance)}>{t("warehouse.view_general")}</PendingLink>
+          <PendingLink href={viewHref("finance")} aria-current={finance ? "page" : undefined} className={tab(finance)}>{t("warehouse.view_finance")}</PendingLink>
+        </div>
         <form className="flex flex-wrap items-center gap-3" action="/warehouse">
+          {finance && <input type="hidden" name="view" value="finance" />}
           <Select
             name="warehouse"
             defaultValue={get("warehouse") ?? ""}
@@ -64,33 +76,28 @@ export default async function WarehousePage({ searchParams }: PageProps<"/wareho
           <Button type="submit" variant="secondary" className="active:scale-95">{t("common.apply")}</Button>
         </form>
       </StickyToolbar>
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("warehouse.warehouse")}</TableHead>
-              <TableHead>{t("warehouse.category")}</TableHead>
-              <TableHead>{t("warehouse.product")}</TableHead>
-              <TableHead className="text-right">{t("warehouse.quantity")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {res.data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={4}><Text variant="caption">{t("common.empty")}</Text></TableCell></TableRow>
-            )}
-            {res.data.rows.map((r) => (
-              <TableRow key={`${r.warehouseSdId}:${r.productSdId}`}>
-                <TableCell className="whitespace-nowrap">{r.warehouseName}</TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {r.categoryName ?? <Text as="span" variant="caption">{t("warehouse.no_category")}</Text>}
-                </TableCell>
-                <TableCell className="min-w-48 whitespace-normal"><Text as="span">{r.productName}</Text></TableCell>
-                <TableCell className="text-right tabular-nums">{formatQty(r.quantity)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <StockGroups
+        data={res.data}
+        finance={finance}
+        hideZero={get("includeZero") !== "true"}
+        labels={{
+          name: t("warehouse.name"),
+          article: t("warehouse.article"),
+          code: t("warehouse.code"),
+          quantity: t("warehouse.quantity"),
+          actual: t("warehouse.actual"),
+          ordered: t("warehouse.ordered"),
+          available: t("warehouse.available"),
+          qty: t("warehouse.qty"),
+          sum: t("warehouse.sum"),
+          total: t("warehouse.total"),
+          noCategory: t("warehouse.no_category"),
+          empty: t("common.empty"),
+          expandAll: t("warehouse.expand_all"),
+          collapseAll: t("warehouse.collapse_all"),
+        }}
+      />
+      {finance && <Text variant="caption" className="mt-2 block">{t("warehouse.fifo_note")}</Text>}
     </>
   );
 }
