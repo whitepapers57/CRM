@@ -16,6 +16,7 @@
     "start:prod": "node dist/main",
     "lint": "oxlint src/ test/",
     "test": "vitest run",
+    "test:remote": "vitest run --testTimeout=120000 --hookTimeout=120000",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
