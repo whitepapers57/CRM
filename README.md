@@ -58,4 +58,6 @@ test database can be a second database on the same Supabase server, e.g.
 that link each test takes seconds, so use `test:remote`, which raises the
 timeouts to 2 minutes; a full run takes about 8 minutes.
 
+Deployment: [docs/deployment.md](docs/deployment.md).
+
 Salesdoc API notes: [docs/salesdoc-api.md](docs/salesdoc-api.md).
