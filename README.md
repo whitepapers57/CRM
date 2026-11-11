@@ -47,7 +47,15 @@ The API syncs every 15 minutes and does a full pass at 03:07 (Tashkent) when
 
 ```bash
 npm test                               # api unit tests
+npm run test:remote -w @df/api         # same, on a remote (Supabase) test database
 npm run test:e2e -w @df/api            # api e2e, needs the database
 ```
+
+The specs empty every table before each test, so `DATABASE_URL_TEST` must be
+its own database whose name contains `_test` — never the dev one. A remote
+test database can be a second database on the same Supabase server, e.g.
+`df_test` through the session pooler (port 5432, no `pgbouncer=true`). Over
+that link each test takes seconds, so use `test:remote`, which raises the
+timeouts to 2 minutes; a full run takes about 8 minutes.
 
 Salesdoc API notes: [docs/salesdoc-api.md](docs/salesdoc-api.md).

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { Period } from '../settlements/period.js';
+import { addValued, valueStock, zeroValued, type Receipt, type Valued } from './fifo.js';
 
 type HiddenRow = { hiddenByName: string; hiddenAt: Date; reason: string };
 const hiddenInfo = (h?: HiddenRow | null) => (h ? { by: h.hiddenByName, at: h.hiddenAt.toISOString(), reason: h.reason } : null);
@@ -59,21 +60,144 @@ export class WarehouseService {
       };
     });
     const offered = new Map(all.flatMap((r) => (r.categorySdId ? [[r.categorySdId, r.categoryName!] as const] : [])));
-    const rows = all
-      .filter((r) => !q.category || (r.categorySdId ?? '-') === q.category)
-      .sort(
-        (a, b) =>
-          // Products without a category go last.
-          Number(a.categoryName === null) - Number(b.categoryName === null) ||
-          (a.categoryName ?? '').localeCompare(b.categoryName ?? '', 'ru') ||
-          a.productName.localeCompare(b.productName, 'ru') ||
-          a.warehouseName.localeCompare(b.warehouseName, 'ru'),
-      );
+    type Row = (typeof all)[number];
+    const byCategoryThenProduct = (a: Row, b: Row) =>
+      // Products without a category go last.
+      Number(a.categoryName === null) - Number(b.categoryName === null) ||
+      (a.categoryName ?? '').localeCompare(b.categoryName ?? '', 'ru') ||
+      a.productName.localeCompare(b.productName, 'ru') ||
+      a.warehouseName.localeCompare(b.warehouseName, 'ru');
+    const inCategory = (r: Row) => !q.category || (r.categorySdId ?? '-') === q.category;
+    const rows = all.filter(inCategory).sort(byCategoryThenProduct);
+
+    // New orders for products the warehouse has none of still count: they are what
+    // is oversold, so they show with 0 on hand and a negative «доступно».
+    const ordered = await this.newOrders();
+    const listed = new Set(rows.map((r) => `${r.warehouseSdId}:${r.productSdId}`));
+    const missing = ordered.filter((o) => !listed.has(`${o.warehouse}:${o.product}`) && (!q.warehouse || o.warehouse === q.warehouse));
+    const productName = new Map(
+      (await this.prisma.product.findMany({ where: { sdId: { in: [...new Set(missing.map((o) => o.product))] } }, select: { sdId: true, name: true } }))
+        .map((p) => [p.sdId, p.name]),
+    );
+    const search = q.search?.toLocaleLowerCase('ru');
+    const orderedOnly = missing
+      .map((o): Row => {
+        const categorySdId = categoryOf.get(o.product) ?? null;
+        return {
+          warehouseSdId: o.warehouse,
+          warehouseName: n.warehouse.get(o.warehouse) ?? o.warehouse,
+          categorySdId,
+          categoryName: categorySdId ? (categoryName.get(categorySdId) ?? categorySdId) : null,
+          productSdId: o.product,
+          productName: productName.get(o.product) ?? o.name ?? o.product,
+          quantity: s3(new Prisma.Decimal(0)),
+        };
+      })
+      .filter((r) => inCategory(r) && (!search || r.productName.toLocaleLowerCase('ru').includes(search)));
+
     return {
       warehouses: n.warehouses,
       categories: [...offered].map(([sdId, name]) => ({ sdId, name })).sort((a, b) => a.name.localeCompare(b.name, 'ru')),
       uncategorized: all.some((r) => r.categorySdId === null),
       rows,
+      ...(await this.valuation([...rows, ...orderedOnly].sort(byCategoryThenProduct), ordered)),
+    };
+  }
+
+  /** Units in new orders (status 1: not sent yet) per warehouse and product. */
+  private async newOrders() {
+    const rows = await this.prisma.$queryRaw<Array<{ warehouse: string | null; product: string; name: string | null; quantity: Prisma.Decimal }>>`
+      SELECT o."warehouseSdId" AS warehouse, l."productSdId" AS product, MAX(l."productName") AS name, SUM(l.quantity) AS quantity
+      FROM "OrderLine" l JOIN "Order" o ON o."sdId" = l."orderSdId"
+      WHERE o.status = 1 AND l."productSdId" IS NOT NULL
+      GROUP BY 1, 2`;
+    return rows.map((r) => ({ warehouse: r.warehouse ?? '', product: r.product, name: r.name, quantity: new Prisma.Decimal(r.quantity) }));
+  }
+
+  /**
+   * Stock by category, then SKU, like Salesdoc's «Общее / Финансовое состояние склада»:
+   * on hand, new orders (status 1, not shipped yet) and what is left to sell, each in
+   * units and in so'm at receipt prices. FIFO per warehouse: new orders take the oldest
+   * batch first (spec: «2 л Дюшес came at 11,200, then at 11,300 — 11,200 goes out first»).
+   */
+  private async valuation(
+    rows: Array<{ warehouseSdId: string; productSdId: string; productName: string; categorySdId: string | null; categoryName: string | null; quantity: string }>,
+    ordered: Array<{ warehouse: string; product: string; quantity: Prisma.Decimal }>,
+  ) {
+    const productIds = [...new Set(rows.map((r) => r.productSdId))];
+    const hidden = (await this.prisma.purchaseHidden.findMany({ select: { purchaseSdId: true } })).map((h) => h.purchaseSdId);
+    const [products, lines] = await Promise.all([
+      this.prisma.product.findMany({ where: { sdId: { in: productIds } }, select: { sdId: true, code1c: true, raw: true } }),
+      this.prisma.purchaseLine.findMany({
+        where: { productSdId: { in: productIds }, purchaseSdId: { notIn: hidden } },
+        select: { productSdId: true, quantity: true, price: true, purchase: { select: { date: true, warehouseSdId: true } } },
+      }),
+    ]);
+
+    const receipts = new Map<string, Receipt[]>(); // "<warehouse>:<product>"
+    const latest = new Map<string, { date: Date; price: Prisma.Decimal }>(); // product, any warehouse
+    for (const l of lines) {
+      const r = { date: l.purchase.date, quantity: l.quantity, price: l.price };
+      const key = `${l.purchase.warehouseSdId ?? ''}:${l.productSdId}`;
+      receipts.set(key, [...(receipts.get(key) ?? []), r]);
+      const prev = latest.get(l.productSdId!);
+      if (!prev || prev.date < r.date) latest.set(l.productSdId!, r);
+    }
+    const orderedQty = new Map(ordered.map((o) => [`${o.warehouse}:${o.product}`, o.quantity]));
+    const info = new Map(products.map((p) => [p.sdId, p]));
+
+    type Money = { actual: Valued; ordered: Valued; available: Valued };
+    const zero = (): Money => ({ actual: zeroValued(), ordered: zeroValued(), available: zeroValued() });
+    const add = (a: Money, b: Money): Money => ({
+      actual: addValued(a.actual, b.actual),
+      ordered: addValued(a.ordered, b.ordered),
+      available: addValued(a.available, b.available),
+    });
+    const out = (m: Money) => {
+      const v = (x: Valued) => ({ quantity: s3(x.quantity), sum: s2(x.sum), unpriced: s3(x.unpriced) });
+      return { actual: v(m.actual), ordered: v(m.ordered), available: v(m.available) };
+    };
+
+    const groups = new Map<string, { categorySdId: string | null; categoryName: string | null; money: Money; items: Map<string, { productSdId: string; productName: string; money: Money }> }>();
+    let total = zero();
+    for (const r of rows) {
+      const key = `${r.warehouseSdId}:${r.productSdId}`;
+      const m = valueStock(
+        new Prisma.Decimal(r.quantity),
+        orderedQty.get(key) ?? new Prisma.Decimal(0),
+        receipts.get(key) ?? [],
+        latest.get(r.productSdId)?.price ?? null,
+      );
+      const gKey = r.categorySdId ?? '-';
+      const g = groups.get(gKey) ?? { categorySdId: r.categorySdId, categoryName: r.categoryName, money: zero(), items: new Map() };
+      const item = g.items.get(r.productSdId) ?? { productSdId: r.productSdId, productName: r.productName, money: zero() };
+      item.money = add(item.money, m);
+      g.items.set(r.productSdId, item);
+      g.money = add(g.money, m);
+      groups.set(gKey, g);
+      total = add(total, m);
+    }
+
+    // Salesdoc's article is not in our schema; read it from the product as received.
+    const article = (raw: unknown) => {
+      const r = (raw ?? {}) as Record<string, unknown>;
+      const v = r.article ?? r.artikul ?? r.sku;
+      return v == null || v === '' ? null : String(v);
+    };
+    return {
+      totals: out(total),
+      groups: [...groups.values()].map((g) => ({
+        categorySdId: g.categorySdId,
+        categoryName: g.categoryName,
+        ...out(g.money),
+        items: [...g.items.values()].map((i) => ({
+          productSdId: i.productSdId,
+          productName: i.productName,
+          article: article(info.get(i.productSdId)?.raw),
+          code: info.get(i.productSdId)?.code1c ?? null,
+          ...out(i.money),
+        })),
+      })),
     };
   }
 

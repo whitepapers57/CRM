@@ -114,7 +114,22 @@ export interface StockResponse {
     productName: string;
     quantity: string;
   }>;
+  /** Grand total over `groups`. */
+  totals: StockMoney;
+  /** One row per category («позиция»), SKUs inside; values at receipt prices, FIFO. */
+  groups: Array<
+    StockMoney & {
+      categorySdId: string | null;
+      categoryName: string | null;
+      items: Array<StockMoney & { productSdId: string; productName: string; article: string | null; code: string | null }>;
+    }
+  >;
 }
+
+/** units, so'm at receipt price, and units no receipt prices (left out of `sum`) */
+export interface StockValue { quantity: string; sum: string; unpriced: string }
+/** On hand, new orders (not shipped yet) and what is left to sell. */
+export interface StockMoney { actual: StockValue; ordered: StockValue; available: StockValue }
 
 export interface PurchaseList {
   total: string;

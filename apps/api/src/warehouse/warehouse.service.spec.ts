@@ -86,6 +86,38 @@ describe('WarehouseService', () => {
     expect(uncategorized).toBe(false);
   });
 
+  it('counts new orders for products the warehouse has none of, as oversold', async () => {
+    await db.product.create({ data: { sdId: 'p9', name: 'Тархун 1 л', active: true, raw: {}, seenAt } });
+    await db.purchase.create({
+      data: {
+        sdId: 'd0_500', date: new Date('2026-10-01T09:00:00Z'), total: 1000, warehouseSdId: 'w1', supplierSdId: '1', raw: {}, seenAt,
+        lines: { create: [{ productSdId: 'p9', productName: 'Тархун 1 л', quantity: 100, price: 10, amount: 1000 }] },
+      },
+    });
+    const order = (sdId: string, status: number, quantity: number) =>
+      db.order.create({
+        data: {
+          sdId, status, dateDocument: new Date('2026-11-01T09:00:00Z'), warehouseSdId: 'w1',
+          totalSumma: 0, discountSumma: 0, totalAfterDiscount: 0, totalReturnsSumma: 0, raw: {}, seenAt,
+          lines: { create: [{ productSdId: 'p9', productName: 'Тархун 1 л', quantity, price: 0, discount: 0, summa: 0, returned: 0 }] },
+        },
+      });
+    await order('o1', 1, 7);
+    await order('o2', 3, 50); // delivered: no longer a new order
+
+    const { rows, groups, totals } = await svc.stock({});
+    expect(rows.map((r) => r.productSdId)).not.toContain('p9'); // nothing on hand
+    const item = groups.flatMap((g) => g.items).find((i) => i.productSdId === 'p9')!;
+    expect([item.actual.quantity, item.ordered.quantity, item.ordered.sum, item.available.quantity, item.available.sum]).toEqual([
+      '0.000', '7.000', '70.00', '-7.000', '-70.00',
+    ]);
+    expect(totals.ordered.quantity).toBe('7.000');
+    // The filters apply to them like to stock.
+    expect((await svc.stock({ warehouse: 'w2' })).totals.ordered.quantity).toBe('0.000');
+    expect((await svc.stock({ search: 'тархун' })).totals.ordered.quantity).toBe('7.000');
+    expect((await svc.stock({ search: 'байкал' })).totals.ordered.quantity).toBe('0.000');
+  });
+
   it('lists purchases in the period with totals, and opens one with its lines', async () => {
     await db.purchase.create({
       data: {
